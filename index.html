@@ -39,9 +39,10 @@
     padding:6px 10px; display:flex; align-items:flex-start; gap:10px; min-height:0; }
   .pool h2 { font-size:13px; color:#5b7a64; margin:0; flex:0 0 116px; white-space:nowrap;
     padding-top:5px; line-height:1.2; }
+  /* max-height = teto; a faixa encolhe sozinha quando há menos gente (cresce só até o limite) */
   .pool .chips { display:flex; flex-flow:row wrap; gap:5px; flex:1;
-    overflow-y:auto; align-content:flex-start; max-height:98px; padding-right:2px; }
-  #pool-out .chips { max-height:58px; }
+    overflow-y:auto; align-content:flex-start; max-height:132px; padding-right:2px; }  /* 4 linhas */
+  #pool-out .chips { max-height:66px; }  /* 2 linhas */
   .pool .chip { flex:0 0 auto; }
   .pool .chip .tag { display:none; }   /* compacto: só o nome; o convite vai no tooltip (title) */
   .pool.out { border-color:#c97a7a; background:#fff7f7; }
