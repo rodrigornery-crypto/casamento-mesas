@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alocador de Mesas — Rodrigo & Luisa</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,"Helvetica Neue",Arial,sans-serif; background:#e4f0e6; color:#222; padding:16px; }
+  h1 { font-size:21px; color:#2d4a33; }
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 6px; }
+  .toolbar button {
+    border:1.5px solid #4a7a58; background:#fff; color:#2d4a33; border-radius:8px;
+    padding:6px 12px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .toolbar button:hover { background:#f0f7f1; }
+  .toolbar .danger { border-color:#a05050; color:#7a3030; }
+  .stats { font-size:13px; color:#444; margin-left:auto; }
+  .legend { display:flex; gap:14px; font-size:12.5px; margin:6px 0 12px; flex-wrap:wrap; align-items:center; }
+  .legend i { width:13px; height:13px; border-radius:50%; display:inline-block; margin-right:4px; vertical-align:-2px; border:1px solid rgba(0,0,0,.25); }
+  label.toggle { font-size:13px; font-weight:600; color:#2d4a33; display:flex; gap:5px; align-items:center; cursor:pointer; }
+  #search { padding:6px 10px; border:1.5px solid #9bb8a4; border-radius:8px; font-size:13px; width:200px; }
+
+  .warnings { margin:8px 0; display:flex; flex-direction:column; gap:4px; }
+  .warn { font-size:13px; font-weight:600; border-radius:8px; padding:6px 10px; }
+  .warn.bad { background:#fde2e2; border:1.5px solid #c95c5c; color:#7a2020; }
+  .warn.near { background:#fdf3da; border:1.5px solid #c9a23c; color:#6e5410; }
+  .warn.ok { background:#e3f5e6; border:1.5px solid #5ca06a; color:#1f5c2d; }
+
+  .layout { display:flex; gap:14px; align-items:flex-start; }
+
+  /* pool — fixo na tela, acompanha a rolagem p/ facilitar arrastar de/para qualquer mesa */
+  .sidebar {
+    width:250px; flex-shrink:0; display:flex; flex-direction:column; gap:12px;
+    position:sticky; top:10px; max-height:calc(100vh - 20px); overflow-y:auto;
+    align-self:flex-start;
+  }
+  .pool { background:#fff; border:2px dashed #8aa893; border-radius:12px; padding:10px; min-height:120px; }
+  .pool h2 { font-size:14px; color:#5b7a64; margin-bottom:8px; }
+  .pool.out { border-color:#c97a7a; background:#fff7f7; }
+  .pool.out h2 { color:#8a4040; }
+  .pool.out .chip { opacity:.75; text-decoration:line-through; }
+  .pool.out .chip .tag { text-decoration:none; }
+  .chip .x {
+    border:1px solid #d9a0a0; background:#fde2e2; cursor:pointer;
+    font-size:11px; line-height:1; padding:2px 5px; border-radius:7px;
+    margin-left:4px; white-space:nowrap; flex-shrink:0;
+  }
+  .chip .x:hover { background:#f8c8c8; transform:scale(1.15); }
+  .chip .x.volta { border-color:#9bc4a4; background:#dff3e2; color:#1f5c2d; font-weight:700; }
+  .chip .x.volta:hover { background:#c8e8cd; }
+
+  /* floor: grade de slots 3 colunas */
+  .floor { flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .slot { min-height:120px; }
+  .slot.empty {
+    border:2px dashed #aac4b1; border-radius:12px; display:flex; align-items:center;
+    justify-content:center; color:#7a9a85; font-size:13px; cursor:pointer;
+  }
+  .slot.empty:hover { background:rgba(255,255,255,.5); }
+  .slot.empty.dragover { box-shadow:0 0 0 3px #4a90d9; }
+  .table-card {
+    background:#fff; border-radius:12px; border:2px solid #999; padding:8px;
+    min-height:150px; transition:box-shadow .15s; height:100%;
+  }
+  .table-card.dragover, .pool.dragover { box-shadow:0 0 0 3px #4a90d9; }
+  .table-card h3 { font-size:13px; display:flex; align-items:center; gap:6px; margin-bottom:6px; cursor:grab;
+    padding:4px 7px; border-radius:8px; }
+  .table-card h3:active { cursor:grabbing; }
+  .table-card h3 .grip { opacity:.4; font-size:12px; }
+  .table-card h3 .tname { outline:none; border-bottom:1px dashed transparent; }
+  .table-card h3 .tname:hover { border-bottom-color:#999; }
+  .table-card h3 .del {
+    border:none; background:none; cursor:pointer; font-size:12px; opacity:.4; padding:0 2px;
+  }
+  .table-card h3 .del:hover { opacity:1; color:#a02020; }
+  .count { margin-left:auto; font-size:12px; font-weight:800; padding:1px 8px; border-radius:10px; background:#e7efe9; color:#2d4a33; }
+  .count.full { background:#dff3e2; color:#1f5c2d; }
+  .count.over { background:#fde2e2; color:#a02020; }
+
+  .chips { display:flex; flex-direction:column; gap:3px; }
+  .chip {
+    font-size:12.5px; padding:3px 8px; border-radius:7px; cursor:grab;
+    border:1px solid rgba(0,0,0,.15); background:#fff;
+    display:flex; align-items:center; gap:5px;
+    user-select:none;
+  }
+  .chip:active { cursor:grabbing; }
+  .chip .tag { font-size:10px; opacity:.65; margin-left:auto; white-space:nowrap; }
+  .chip.dim { opacity:.25; }
+  .chip.hl { box-shadow:0 0 0 2px #d97706; }
+
+  .colorDot {
+    width:16px; height:16px; border-radius:50%; border:1.5px solid rgba(0,0,0,.3);
+    cursor:pointer; flex-shrink:0;
+  }
+  .colorDot:hover { transform:scale(1.2); }
+
+  .rules { margin-top:14px; background:#fff; border-radius:12px; border:1.5px solid #b8cfc0; padding:10px; max-width:680px; }
+  .rules h2 { font-size:14px; color:#2d4a33; margin-bottom:6px; }
+  .rules .rule { font-size:13px; display:flex; gap:6px; align-items:center; margin-bottom:4px; }
+  .rules select { font-size:12.5px; padding:4px; border-radius:6px; border:1px solid #9bb8a4; max-width:220px; }
+  .rules button { font-size:12px; padding:3px 9px; border-radius:6px; border:1px solid #888; background:#fff; cursor:pointer; }
+
+  @media print {
+    .toolbar, .rules, #search, label.toggle, .slot.empty, .chip .x, .table-card h3 .del, .table-card h3 .grip { display:none !important; }
+    body { background:#fff; }
+    .floor { gap:8px; }
+    .table-card { break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>💍 Alocador de Mesas — Casamento Rodrigo & Luisa</h1>
+
+<div class="toolbar">
+  <button onclick="resetToSuggestion()">↺ Restaurar sugestão</button>
+  <button onclick="clearAll()" class="danger">✕ Esvaziar mesas</button>
+  <button onclick="addTable()">➕ Nova mesa</button>
+  <button onclick="exportJSON()">⬇ Exportar</button>
+  <button onclick="importJSON()">⬆ Importar</button>
+  <button onclick="copySummary()">📋 Copiar resumo</button>
+  <button onclick="window.print()">🖨 Imprimir</button>
+  <input id="search" placeholder="🔎 buscar convidado..." oninput="render()">
+  <span class="stats" id="stats"></span>
+  <span id="conn" style="margin-left:auto; font-weight:600; font-size:13px; color:#9b9b9b">● local</span>
+</div>
+
+<div class="legend">
+  <span>🧒 criança · 👶 colo (não ocupa cadeira)</span>
+  <span style="color:#2d4a33; font-weight:600">🎨 clique na bolinha de cor da mesa para trocar a cor</span>
+  <span style="color:#2d4a33; font-weight:600">👪 o convite sempre senta junto — o botão "não vai" cancela só aquela pessoa</span>
+  <span style="color:#555">soltar fora das mesas = vai para "Sem mesa"</span>
+  <span style="color:#555">↕ arraste a mesa pelo <b>título</b> para trocar de posição</span>
+</div>
+
+<div class="warnings" id="warnings"></div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="pool" id="pool" data-table="">
+      <h2>📥 Sem mesa</h2>
+      <div class="chips"></div>
+    </div>
+    <div class="pool out" id="pool-out" data-table="OUT">
+      <h2 id="out-title">🚫 Não vão</h2>
+      <div class="chips"></div>
+    </div>
+  </div>
+  <div class="floor" id="floor"></div>
+</div>
+
+<div class="rules">
+  <h2>⚠️ Convites que devem ficar longe um do outro</h2>
+  <div id="rules-list"></div>
+  <div class="rule">
+    <select id="rule-a"></select> ↔ <select id="rule-b"></select>
+    <button onclick="addRule()">+ adicionar</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ============================================================
+// SUPABASE — sincronização ao vivo (Rodrigo + Luisa veem o mesmo board)
+// ============================================================
+const SUPABASE_URL      = "https://nemzsdykbynlktdzrlyq.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_kBY7b4_6II4g01mcvKmKVw_aMLnVnaj";
+const ROOM = new URLSearchParams(location.search).get("room") || "casamento";
+// ============================================================
+// DADOS — lista COMPLETA da planilha (109 pessoas = prioridade ALTA, auditada em 06/06/2026)
+// tipo: a = adulto, c = criança (ocupa cadeira), b = bebê de colo (não ocupa)
+// ============================================================
+const AREAS = {
+  jbon:   { nome:'José Bonifácio', cls:'a-jbon' },
+  tucura: { nome:'Tucura',         cls:'a-tucura' },
+  julho9: { nome:'9 de Julho',     cls:'a-9julho' },
+  jk:     { nome:'JK Iguatemi',    cls:'a-jk' },
+  noiva:  { nome:'Convidados da Noiva', cls:'' },
+};
+
+const GUESTS = [
+  // ---------- JOSÉ BONIFÁCIO (41) ----------
+  {n:'Amauri Jorge',t:'a',cv:'Amauri, Mônica e família',ar:'jbon'},
+  {n:'Mônica Jorge',t:'a',cv:'Amauri, Mônica e família',ar:'jbon'},
+  {n:'Fernanda Jorge',t:'a',cv:'Amauri, Mônica e família',ar:'jbon'},
+  {n:'Marcelo Jorge',t:'a',cv:'Marcelo, Laís e família',ar:'jbon'},
+  {n:'Lais Jorge',t:'a',cv:'Marcelo, Laís e família',ar:'jbon'},
+  {n:'Marcelinho Jorge',t:'c',cv:'Marcelo, Laís e família',ar:'jbon'},
+  {n:'Rafael Soares Rosa',t:'a',cv:'Rafael e Priscila',ar:'jbon'},
+  {n:'Priscila Soares Rosa',t:'a',cv:'Rafael e Priscila',ar:'jbon'},
+  {n:'Maurício Jorge',t:'a',cv:'Maurício e Bianca',ar:'jbon'},
+  {n:'Bianca Jorge',t:'a',cv:'Maurício e Bianca',ar:'jbon'},
+  {n:'Lucas Zoli Nery',t:'a',cv:'Lucas Zoli',ar:'jbon'},
+  {n:'João Luiz Rocha',t:'a',cv:'João Luiz, Kátia e Lais',ar:'jbon'},
+  {n:'Kátia Rocha',t:'a',cv:'João Luiz, Kátia e Lais',ar:'jbon'},
+  {n:'Lais Rocha',t:'c',cv:'João Luiz, Kátia e Lais',ar:'jbon'},
+  {n:'Idalson Nery',t:'a',cv:'Idalson, Helena e família',ar:'jbon'},
+  {n:'Helena Nery',t:'a',cv:'Idalson, Helena e família',ar:'jbon'},
+  {n:'Bruna Nery',t:'a',cv:'Idalson, Helena e família',ar:'jbon'},
+  {n:'Julia Nery',t:'a',cv:'Idalson, Helena e família',ar:'jbon'},
+  {n:'Hugo Alvarenga Cunha',t:'a',cv:'Hugo e Juliana',ar:'jbon'},
+  {n:'Juliana de Carvalho Cunha',t:'a',cv:'Hugo e Juliana',ar:'jbon'},
+  // Maria Luísa e Olivia (filhas) FORA: sem prioridade Alta na planilha
+  {n:'Ricardo Alvarenga Cunha',t:'a',cv:'Ricardo e Carolina',ar:'jbon'},
+  {n:'Carolina Mayor Carvalho',t:'a',cv:'Ricardo e Carolina',ar:'jbon'},
+  {n:'Daniela Alvarenga Cunha',t:'a',cv:'Daniela',ar:'jbon'},
+  {n:'Marcelo Nery',t:'a',cv:'Marcelo Nery e Família',ar:'jbon'},
+  {n:'Lila Rodrigues',t:'a',cv:'Marcelo Nery e Família',ar:'jbon'},
+  {n:'Criança 1 (Marcelo N.)',t:'c',cv:'Marcelo Nery e Família',ar:'jbon'},
+  {n:'Criança 2 (Marcelo N.)',t:'c',cv:'Marcelo Nery e Família',ar:'jbon'},
+  {n:'Criança 3 (Marcelo N.)',t:'c',cv:'Marcelo Nery e Família',ar:'jbon'},
+  {n:'Criança 4 (Marcelo N.)',t:'c',cv:'Marcelo Nery e Família',ar:'jbon'},
+  {n:'Bebê (Marcelo N.)',t:'b',cv:'Marcelo Nery e Família',ar:'jbon'},
+  {n:'Alan',t:'a',cv:'Alan, Bianca e família',ar:'jbon'},
+  {n:'Bianca',t:'a',cv:'Alan, Bianca e família',ar:'jbon'},
+  {n:'Julia (Alan)',t:'c',cv:'Alan, Bianca e família',ar:'jbon'},
+  {n:'Mateus (Alan)',t:'c',cv:'Alan, Bianca e família',ar:'jbon'},
+  {n:'Gustavo',t:'a',cv:'Gustavo e Talita',ar:'jbon'},
+  {n:'Talita',t:'a',cv:'Gustavo e Talita',ar:'jbon'},
+  {n:'Felipe Melo',t:'a',cv:'Felipe Melo e Natalia',ar:'jbon'},
+  {n:'Natalia',t:'a',cv:'Felipe Melo e Natalia',ar:'jbon'},
+  {n:'Cecília (bebê)',t:'b',cv:'Felipe Melo e Natalia',ar:'jbon'},
+  // ---------- TUCURA (20) ----------
+  {n:'Nestor Borin',t:'a',cv:'Nestor e Sônia',ar:'tucura'},
+  {n:'Sonia Borin',t:'a',cv:'Nestor e Sônia',ar:'tucura'},
+  {n:'Valdir Gonçalves',t:'a',cv:'Valdir e Vera',ar:'tucura'},
+  {n:'Vera Gonçalves',t:'a',cv:'Valdir e Vera',ar:'tucura'},
+  {n:'Juliana Calderan',t:'a',cv:'Juliana Calderan',ar:'tucura'},
+  {n:'Fabio Nery Neves',t:'a',cv:'Fabio, Bruna e família',ar:'tucura'},
+  {n:'Bruna Nery Neves',t:'a',cv:'Fabio, Bruna e família',ar:'tucura'},
+  {n:'Rafaela Nery Neves',t:'c',cv:'Fabio, Bruna e família',ar:'tucura'},
+  {n:'Bernardo Nery Neves',t:'c',cv:'Fabio, Bruna e família',ar:'tucura'},
+  {n:'Ismail Nery',t:'a',cv:'Ismail e Sonia',ar:'tucura'},
+  {n:'Sonia Zoli',t:'a',cv:'Ismail e Sonia',ar:'tucura'},
+  {n:'Miguel Carvalho',t:'a',cv:'Miguel e Maria Teresa',ar:'tucura'},
+  {n:'Maria Teresa Carvalho',t:'a',cv:'Miguel e Maria Teresa',ar:'tucura'},
+  {n:'Aparecida Buscaratto Rocha',t:'a',cv:'Aparecida Buscaratto Rocha',ar:'tucura'},
+  {n:'Donizete Nery',t:'a',cv:'Donizete e Luzia',ar:'tucura'},
+  {n:'Luzia Rocha Nery',t:'a',cv:'Donizete e Luzia',ar:'tucura'},
+  {n:'Karina Rocha Nery',t:'a',cv:'Karina, Pascal e Khloe',ar:'tucura'},
+  {n:'Pascal Gaeng',t:'a',cv:'Karina, Pascal e Khloe',ar:'tucura'},
+  {n:'Khloe Rocha Nery',t:'c',cv:'Karina, Pascal e Khloe',ar:'tucura'},
+  {n:'Helenir Nery',t:'a',cv:'Helenir',ar:'tucura'},
+  // ---------- 9 DE JULHO (28) ----------
+  {n:'Pedro Carneiro',t:'a',cv:'Pedro e Giovanna',ar:'julho9'},
+  {n:'Giovanna',t:'a',cv:'Pedro e Giovanna',ar:'julho9'},
+  {n:'Ana Julia',t:'c',cv:'Pedro e Giovanna',ar:'julho9'},
+  {n:'Miguel (bebê)',t:'b',cv:'Pedro e Giovanna',ar:'julho9'},
+  {n:'Fabio Camilo (padrinho)',t:'a',cv:'Fabio, Carina e família',ar:'julho9'},
+  {n:'Carina (madrinha)',t:'a',cv:'Fabio, Carina e família',ar:'julho9'},
+  {n:'Lucca (bebê)',t:'b',cv:'Fabio, Carina e família',ar:'julho9'},
+  {n:'Diego',t:'a',cv:'Diego e Mariana',ar:'julho9'},
+  {n:'Mariana',t:'a',cv:'Diego e Mariana',ar:'julho9'},
+  {n:'Caio',t:'a',cv:'Caio e Marcelli',ar:'julho9'},
+  {n:'Marcelli',t:'a',cv:'Caio e Marcelli',ar:'julho9'},
+  {n:'Arthur (bebê)',t:'b',cv:'Caio e Marcelli',ar:'julho9'},
+  {n:'Arthur (padrinho)',t:'a',cv:'Arthur e Malu',ar:'julho9'},
+  {n:'Malu (madrinha)',t:'a',cv:'Arthur e Malu',ar:'julho9'},
+  {n:'Rafael Belmonte',t:'a',cv:'Rafael Belmonte',ar:'julho9'},
+  {n:'Patrick',t:'a',cv:'Patrick e Amanda',ar:'julho9'},
+  {n:'Amanda',t:'a',cv:'Patrick e Amanda',ar:'julho9'},
+  {n:'Criança (Patrick)',t:'c',cv:'Patrick e Amanda',ar:'julho9'},
+  {n:'Renan',t:'a',cv:'Renan, Midori e Família',ar:'julho9'},
+  {n:'Midori',t:'a',cv:'Renan, Midori e Família',ar:'julho9'},
+  {n:'Tomas',t:'c',cv:'Renan, Midori e Família',ar:'julho9'},
+  {n:'Mauricio (padrinho)',t:'a',cv:'Mauricio, Juliana e Família',ar:'julho9'},
+  {n:'Juliana (madrinha)',t:'a',cv:'Mauricio, Juliana e Família',ar:'julho9'},
+  {n:'Letícia (bebê)',t:'b',cv:'Mauricio, Juliana e Família',ar:'julho9'},
+  {n:'Daniel',t:'a',cv:'Daniel e Lais',ar:'julho9'},
+  {n:'Lais',t:'a',cv:'Daniel e Lais',ar:'julho9'},
+  {n:'Jorge',t:'a',cv:'Jorge e Maria Julia',ar:'julho9'},
+  {n:'Maria Júlia',t:'a',cv:'Jorge e Maria Julia',ar:'julho9'},
+  // ---------- JK IGUATEMI (23) ----------
+  {n:'Mariana Saraiva',t:'a',cv:'Mariana Saraiva',ar:'jk'},
+  {n:'Joyce Moreno',t:'a',cv:'Joyce e Adriano',ar:'jk'},
+  {n:'Adriano',t:'a',cv:'Joyce e Adriano',ar:'jk'},
+  {n:'Jaqueline Torres',t:'a',cv:'Jaqueline Torres e Guilherme',ar:'jk'},
+  {n:'Guilherme (Jaqueline)',t:'a',cv:'Jaqueline Torres e Guilherme',ar:'jk'},
+  {n:'Nyckolas',t:'a',cv:'Nyckollas e Camila',ar:'jk'},
+  {n:'Camila',t:'a',cv:'Nyckollas e Camila',ar:'jk'},
+  {n:'Tom',t:'c',cv:'Nyckollas e Camila',ar:'jk'},
+  {n:'Lucas',t:'a',cv:'Lucas e Fred',ar:'jk'},
+  {n:'Fred',t:'a',cv:'Lucas e Fred',ar:'jk'},
+  {n:'Lucas Romi',t:'a',cv:'Lucas, Ana e Família',ar:'jk'},
+  {n:'Ana Claudia Romi',t:'a',cv:'Lucas, Ana e Família',ar:'jk'},
+  {n:'João Romi',t:'c',cv:'Lucas, Ana e Família',ar:'jk'},
+  {n:'Leonardo',t:'a',cv:'Leonardo e Carol',ar:'jk'},
+  {n:'Carolina (Leonardo)',t:'a',cv:'Leonardo e Carol',ar:'jk'},
+  {n:'Leandro',t:'a',cv:'Leandro e Larissa',ar:'jk'},
+  {n:'Larissa',t:'a',cv:'Leandro e Larissa',ar:'jk'},
+  {n:'Guilherme (solo)',t:'a',cv:'Guilherme',ar:'jk'},
+  {n:'Leonam',t:'a',cv:'Leonam e Marcela',ar:'jk'},
+  {n:'Marcela',t:'a',cv:'Leonam e Marcela',ar:'jk'},
+  {n:'Daylon',t:'a',cv:'Daylon',ar:'jk'},
+  {n:'Vanessa Rocha',t:'a',cv:'Vanessa Rocha',ar:'jk'},
+  // Weiler FORA daqui: linha deslocada — está em 'Claudia e Weiler' (Convidados da Noiva)
+  // ---------- CONVIDADOS DA NOIVA (115 = prioridade Alta; Luisa vai realocar) ----------
+  {n:'Luana Milhomem',t:'a',cv:'Luana, Rafael e Família',ar:'noiva'},
+  {n:'Rafael Dias',t:'a',cv:'Luana, Rafael e Família',ar:'noiva'},
+  {n:'Lucas',t:'c',cv:'Luana, Rafael e Família',ar:'noiva'},
+  {n:'Matheus',t:'c',cv:'Luana, Rafael e Família',ar:'noiva'},
+  {n:'Meire Milhomem',t:'a',cv:'Luana, Rafael e Família',ar:'noiva'},
+  {n:'Diego Milhomem',t:'a',cv:'Luana, Rafael e Família',ar:'noiva'},
+  {n:'acompanhante (Luana)',t:'a',cv:'Luana, Rafael e Família',ar:'noiva'},
+  {n:'Laura Costa Beber Jesus',t:'a',cv:'Laura Costa Beber Jesus',ar:'noiva'},
+  {n:'Susana Martin',t:'a',cv:'Susana e Família',ar:'noiva'},
+  {n:'Steve Martin',t:'a',cv:'Susana e Família',ar:'noiva'},
+  {n:'Isabela',t:'a',cv:'Susana e Família',ar:'noiva'},
+  {n:'Lucca',t:'a',cv:'Susana e Família',ar:'noiva'},
+  {n:'Matteo',t:'a',cv:'Susana e Família',ar:'noiva'},
+  {n:'Isaura Fasciani',t:'a',cv:'Isaura e Marcelo',ar:'noiva'},
+  {n:'Marcelo Schmid',t:'a',cv:'Isaura e Marcelo',ar:'noiva'},
+  {n:'Lara',t:'c',cv:'Isaura e Marcelo',ar:'noiva'},
+  {n:'Maria Cláudia',t:'a',cv:'Maria Cláudia, Hugo e família',ar:'noiva'},
+  {n:'Hugo',t:'a',cv:'Maria Cláudia, Hugo e família',ar:'noiva'},
+  {n:'Maria Carolina',t:'c',cv:'Maria Cláudia, Hugo e família',ar:'noiva'},
+  {n:'Bernardo',t:'c',cv:'Maria Cláudia, Hugo e família',ar:'noiva'},
+  {n:'Renata Groba Bandeira Hoffmann',t:'a',cv:'Renata, Alexandre e família',ar:'noiva'},
+  {n:'Alexandre Hoffmann',t:'a',cv:'Renata, Alexandre e família',ar:'noiva'},
+  {n:'Jonas',t:'c',cv:'Renata, Alexandre e família',ar:'noiva'},
+  {n:'Ingrid',t:'c',cv:'Renata, Alexandre e família',ar:'noiva'},
+  {n:'Ana Carolina Fuschini Severini',t:'a',cv:'Ana Carolina, Carlos Eduardo e Família',ar:'noiva'},
+  {n:'Carlos Eduardo Severini',t:'a',cv:'Ana Carolina, Carlos Eduardo e Família',ar:'noiva'},
+  {n:'Helena',t:'b',cv:'Ana Carolina, Carlos Eduardo e Família',ar:'noiva'},
+  {n:'Aldo Fuschini',t:'a',cv:'Ana Carolina, Carlos Eduardo e Família',ar:'noiva'},
+  {n:'Lígia Fuschini',t:'a',cv:'Ana Carolina, Carlos Eduardo e Família',ar:'noiva'},
+  {n:'Giovana Pohl',t:'a',cv:'Giovana Pohl e Família',ar:'noiva'},
+  {n:'Acompanhante (Giovana Pohl)',t:'a',cv:'Giovana Pohl e Família',ar:'noiva'},
+  {n:'Cláudia Pohl',t:'a',cv:'Giovana Pohl e Família',ar:'noiva'},
+  {n:'Fábio Pohl',t:'a',cv:'Giovana Pohl e Família',ar:'noiva'},
+  {n:'Paola Liebhardt',t:'a',cv:'Paola, Pedro e família',ar:'noiva'},
+  {n:'Pedro Paulo Guglielmo Neves',t:'a',cv:'Paola, Pedro e família',ar:'noiva'},
+  {n:'Inês Liebhardt',t:'a',cv:'Paola, Pedro e família',ar:'noiva'},
+  {n:'Isabel Groba',t:'a',cv:'Isabel Groba e Família',ar:'noiva'},
+  {n:'Rogério Vieira',t:'a',cv:'Isabel Groba e Família',ar:'noiva'},
+  {n:'Pedro Groba',t:'a',cv:'Isabel Groba e Família',ar:'noiva'},
+  {n:'Alana',t:'a',cv:'Alana Wanderley',ar:'noiva'},
+  {n:'Acompanhante (Alana Wanderley)',t:'a',cv:'Alana Wanderley',ar:'noiva'},
+  {n:'Rafaela Magalhães',t:'a',cv:'Rafaela e Família',ar:'noiva'},
+  {n:'Felipe Melo',t:'a',cv:'Rafaela e Família',ar:'noiva'},
+  {n:'Isabela',t:'c',cv:'Rafaela e Família',ar:'noiva'},
+  {n:'Lorena Viana',t:'a',cv:'Lorena e Alexandre',ar:'noiva'},
+  {n:'Alexandre Presswell',t:'a',cv:'Lorena e Alexandre',ar:'noiva'},
+  {n:'Larissa Crestani',t:'a',cv:'Larissa e Xerxes',ar:'noiva'},
+  {n:'Xerxes Lima',t:'a',cv:'Larissa e Xerxes',ar:'noiva'},
+  {n:'Pedro Penedo',t:'a',cv:'Pedro Penedo',ar:'noiva'},
+  {n:'Getúllio Pisa',t:'a',cv:'Getúllio Pisa',ar:'noiva'},
+  {n:'Acompanhante (Getúllio Pisa)',t:'a',cv:'Getúllio Pisa',ar:'noiva'},
+  {n:'Flávia Dias',t:'a',cv:'Flávia e Kai',ar:'noiva'},
+  {n:'Beren Kai',t:'a',cv:'Flávia e Kai',ar:'noiva'},
+  {n:'Nicolas Rohrer',t:'a',cv:'Nicolas e Flávia',ar:'noiva'},
+  {n:'Flávia Rohrer',t:'a',cv:'Nicolas e Flávia',ar:'noiva'},
+  {n:'Peter Rorher',t:'a',cv:'Peter e Corina',ar:'noiva'},
+  {n:'Corina Rorher',t:'a',cv:'Peter e Corina',ar:'noiva'},
+  {n:'Amanda Marques',t:'a',cv:'Amanda Marques',ar:'noiva'},
+  {n:'Gabriel',t:'a',cv:'Amanda Marques',ar:'noiva'},
+  {n:'Mariana Dib',t:'a',cv:'Mariana e Yuri',ar:'noiva'},
+  {n:'Yuri Cordeiro',t:'a',cv:'Mariana e Yuri',ar:'noiva'},
+  {n:'Camila Cardoso',t:'a',cv:'Camila e Danilo',ar:'noiva'},
+  {n:'Danilo Barbieri',t:'a',cv:'Camila e Danilo',ar:'noiva'},
+  {n:'Regina Bandeira',t:'a',cv:'Regina e Fausto',ar:'noiva'},
+  {n:'Fausto Bandeira',t:'a',cv:'Regina e Fausto',ar:'noiva'},
+  {n:'Tia Ana',t:'a',cv:'Ana Beatriz Groba',ar:'noiva'},
+  {n:'Fernando',t:'a',cv:'Ana Beatriz Groba',ar:'noiva'},
+  {n:'Juliana Groba',t:'a',cv:'Juliana e Victor',ar:'noiva'},
+  {n:'Victor Faleiro',t:'a',cv:'Juliana e Victor',ar:'noiva'},
+  {n:'Marcelo Groba',t:'a',cv:'Marcelo e Luana',ar:'noiva'},
+  {n:'Luana Groba',t:'a',cv:'Marcelo e Luana',ar:'noiva'},
+  {n:'Joaquim Ferreira',t:'a',cv:'Joaquim Ferreira e família',ar:'noiva'},
+  {n:'Leila',t:'a',cv:'Joaquim Ferreira e família',ar:'noiva'},
+  {n:'Fátima',t:'a',cv:'Fátima e Natálio',ar:'noiva'},
+  {n:'Natálio',t:'a',cv:'Fátima e Natálio',ar:'noiva'},
+  {n:'Alice Matos',t:'a',cv:'Alice e Família',ar:'noiva'},
+  {n:'Michel',t:'a',cv:'Alice e Família',ar:'noiva'},
+  {n:'Maria Fernanda',t:'b',cv:'Alice e Família',ar:'noiva'},
+  {n:'Maria Eduarda',t:'b',cv:'Alice e Família',ar:'noiva'},
+  {n:'José Mario',t:'a',cv:'José Mario e Marina',ar:'noiva'},
+  {n:'Marina',t:'a',cv:'José Mario e Marina',ar:'noiva'},
+  {n:'José Henrique',t:'a',cv:'José Henrique e Edna',ar:'noiva'},
+  {n:'Edna',t:'a',cv:'José Henrique e Edna',ar:'noiva'},
+  {n:'Fernando',t:'a',cv:'Fernando e Vicky',ar:'noiva'},
+  {n:'Victoria',t:'a',cv:'Fernando e Vicky',ar:'noiva'},
+  {n:'Eduardo Elllery',t:'a',cv:'Eduardo Elllery e Rosane',ar:'noiva'},
+  {n:'Rosane',t:'a',cv:'Eduardo Elllery e Rosane',ar:'noiva'},
+  {n:'Camilo',t:'a',cv:'Camilo e Hosana',ar:'noiva'},
+  {n:'Hosana',t:'a',cv:'Camilo e Hosana',ar:'noiva'},
+  {n:'Lilian',t:'a',cv:'Lilian e Flávio Civatti',ar:'noiva'},
+  {n:'Flávio Civatti',t:'a',cv:'Lilian e Flávio Civatti',ar:'noiva'},
+  {n:'Laura',t:'a',cv:'Laura e Onísio',ar:'noiva'},
+  {n:'Onísio',t:'a',cv:'Laura e Onísio',ar:'noiva'},
+  {n:'Claudia',t:'a',cv:'Claudia e Weiler',ar:'noiva'},
+  {n:'Weiler',t:'a',cv:'Claudia e Weiler',ar:'noiva'},
+  {n:'Patricia',t:'a',cv:'Patricia',ar:'noiva'},
+  {n:'Acompanhante (Patricia)',t:'a',cv:'Patricia',ar:'noiva'},
+  {n:'Dr Mario',t:'a',cv:'Dr Mauro e Paula',ar:'noiva'},
+  {n:'Paula',t:'a',cv:'Dr Mauro e Paula',ar:'noiva'},
+  {n:'Solon',t:'a',cv:'Solon e Karine',ar:'noiva'},
+  {n:'Karine',t:'a',cv:'Solon e Karine',ar:'noiva'},
+  {n:'Cristina',t:'a',cv:'Cristina e Família',ar:'noiva'},
+  {n:'Acompanhante (Cristina)',t:'a',cv:'Cristina e Família',ar:'noiva'},
+  {n:'Milena Lavor',t:'a',cv:'Milena',ar:'noiva'},
+  {n:'Pâmela Cavalcante',t:'a',cv:'Pâmela',ar:'noiva'},
+  {n:'Estela Munhoz',t:'a',cv:'Estela e César',ar:'noiva'},
+  {n:'Jair Junior',t:'a',cv:'Jair Junior',ar:'noiva'},
+  {n:'Joice Heloise Siqueira',t:'a',cv:'Joice Heloise',ar:'noiva'},
+  {n:'Virgínia Bandeira',t:'a',cv:'Virgínia',ar:'noiva'},
+  {n:'Irene Groba',t:'a',cv:'Irene (Groba)',ar:'noiva'},
+  {n:'Irene Tavares',t:'a',cv:'Irene (Tavares)',ar:'noiva'},
+  {n:'Delvenita',t:'a',cv:'Dedei',ar:'noiva'},
+  {n:'Rosário',t:'a',cv:'Rosário',ar:'noiva'},
+  {n:'Elizabeth',t:'a',cv:'Elizabeth',ar:'noiva'},
+  {n:'Dayze',t:'a',cv:'Dayze',ar:'noiva'},
+].map((g,i)=>({id:i, ...g}));
+
+const CAPACITY = 8;
+const COLS = 3;          // colunas da grade de slots
+const MAX_SLOTS = 36;    // 3 x 12
+
+// paleta de cores DAS MESAS [fundo claro, borda escura] — cada mesa tem a sua
+const PALETTE = [
+  ['#cdebd2','#2f7d3f'], ['#cfe3f7','#2e6da4'], ['#ffd9b3','#c9762a'], ['#e3d6f3','#6f42c1'],
+  ['#fde2e2','#c95c5c'], ['#fdf3da','#c9a23c'], ['#d2f0ee','#2a8a82'], ['#f3d6e4','#b1407e'],
+  ['#e0e0f8','#4a4ab8'], ['#e8e8d2','#7a7a30'], ['#f0dccd','#a05a2c'], ['#d6f3d6','#3f9b3f'],
+  ['#d9e8f2','#34788c'], ['#f2d9d2','#aa4a30'], ['#e6d2f0','#8a3fb0'], ['#e0e0e0','#555555'],
+];
+
+// mesas iniciais: { id, nome, slot } — slot = posição na grade (0..17)
+const DEFAULT_TABLES = [
+  {id:'t1',  nome:'Tucura — Família Nery',          slot:0},
+  {id:'t2',  nome:'Tucura — Tios',                  slot:1},
+  {id:'t3',  nome:'Tucura — Amigos',                slot:2},
+  {id:'t4',  nome:'9 de Julho — Padrinhos',         slot:3},
+  {id:'t5',  nome:'9 de Julho — Famílias',          slot:4},
+  {id:'t6',  nome:'9 de Julho — Amigos',            slot:5},
+  {id:'t7',  nome:'JK Iguatemi 1',                  slot:6},
+  {id:'t8',  nome:'JK Iguatemi 2',                  slot:7},
+  {id:'t9',  nome:'JK Iguatemi 3',                  slot:8},
+  {id:'t10', nome:'J. Bonifácio — Nery/Rocha',      slot:9},
+  {id:'t11', nome:'J. Bonifácio — Fam. Jorge',      slot:10},
+  {id:'t12', nome:'J. Bonifácio — Alvarenga Cunha', slot:11},
+  {id:'t13', nome:'J. Bonifácio — Padrinhos',       slot:12},
+  {id:'t14', nome:'J. Bonifácio — Marcelo Nery',    slot:14},
+  {id:'n1', nome:'Convidados Noiva 1', slot:15},
+  {id:'n2', nome:'Convidados Noiva 2', slot:16},
+  {id:'n3', nome:'Convidados Noiva 3', slot:17},
+  {id:'n4', nome:'Convidados Noiva 4', slot:18},
+  {id:'n5', nome:'Convidados Noiva 5', slot:19},
+  {id:'n6', nome:'Convidados Noiva 6', slot:20},
+  {id:'n7', nome:'Convidados Noiva 7', slot:21},
+  {id:'n8', nome:'Convidados Noiva 8', slot:22},
+  {id:'n9', nome:'Convidados Noiva 9', slot:23},
+  {id:'n10', nome:'Convidados Noiva 10', slot:24},
+  {id:'n11', nome:'Convidados Noiva 11', slot:25},
+  {id:'n12', nome:'Convidados Noiva 12', slot:26},
+  {id:'n13', nome:'Convidados Noiva 13', slot:27},
+  {id:'n14', nome:'Convidados Noiva 14', slot:28},
+];
+
+// sugestão inicial: convite → mesa
+const SUGGESTION = {
+  'Fabio, Bruna e família':'t1', 'Karina, Pascal e Khloe':'t1', 'Helenir':'t1',
+  'Donizete e Luzia':'t2', 'Ismail e Sonia':'t2', 'Miguel e Maria Teresa':'t2',
+  'Aparecida Buscaratto Rocha':'t2', 'Juliana Calderan':'t2',
+  'Nestor e Sônia':'t3', 'Valdir e Vera':'t3',
+  'Fabio, Carina e família':'t4', 'Mauricio, Juliana e Família':'t4', 'Arthur e Malu':'t4', 'Diego e Mariana':'t4',
+  'Pedro e Giovanna':'t5', 'Caio e Marcelli':'t5', 'Patrick e Amanda':'t5',
+  'Renan, Midori e Família':'t6', 'Daniel e Lais':'t6', 'Jorge e Maria Julia':'t6', 'Rafael Belmonte':'t6',
+  'Joyce e Adriano':'t7', 'Jaqueline Torres e Guilherme':'t7', 'Nyckollas e Camila':'t7', 'Mariana Saraiva':'t7',
+  'Lucas e Fred':'t8', 'Lucas, Ana e Família':'t8', 'Leonardo e Carol':'t8', 'Daylon':'t8',
+  'Leandro e Larissa':'t9', 'Guilherme':'t9', 'Leonam e Marcela':'t9', 'Vanessa Rocha':'t9',
+  'Idalson, Helena e família':'t10', 'João Luiz, Kátia e Lais':'t10',
+  'Amauri, Mônica e família':'t11', 'Marcelo, Laís e família':'t11', 'Maurício e Bianca':'t11',
+  'Hugo e Juliana':'t12', 'Ricardo e Carolina':'t12', 'Daniela':'t12', 'Lucas Zoli':'t12',
+  'Alan, Bianca e família':'t13', 'Gustavo e Talita':'t13', 'Felipe Melo e Natalia':'t13',
+  'Marcelo Nery e Família':'t14', 'Rafael e Priscila':'t14',
+  // --- Convidados da Noiva ---
+  'Luana, Rafael e Família':'n1',
+  'Laura Costa Beber Jesus':'n1',
+  'Susana e Família':'n2',
+  'Isaura e Marcelo':'n2',
+  'Maria Cláudia, Hugo e família':'n3',
+  'Renata, Alexandre e família':'n3',
+  'Ana Carolina, Carlos Eduardo e Família':'n4',
+  'Giovana Pohl e Família':'n4',
+  'Paola, Pedro e família':'n5',
+  'Isabel Groba e Família':'n5',
+  'Alana Wanderley':'n5',
+  'Rafaela e Família':'n6',
+  'Lorena e Alexandre':'n6',
+  'Larissa e Xerxes':'n6',
+  'Pedro Penedo':'n6',
+  'Getúllio Pisa':'n7',
+  'Flávia e Kai':'n7',
+  'Nicolas e Flávia':'n7',
+  'Peter e Corina':'n7',
+  'Amanda Marques':'n8',
+  'Mariana e Yuri':'n8',
+  'Camila e Danilo':'n8',
+  'Regina e Fausto':'n8',
+  'Ana Beatriz Groba':'n9',
+  'Juliana e Victor':'n9',
+  'Marcelo e Luana':'n9',
+  'Joaquim Ferreira e família':'n9',
+  'Fátima e Natálio':'n10',
+  'Alice e Família':'n10',
+  'José Mario e Marina':'n10',
+  'José Henrique e Edna':'n10',
+  'Fernando e Vicky':'n11',
+  'Eduardo Elllery e Rosane':'n11',
+  'Camilo e Hosana':'n11',
+  'Lilian e Flávio Civatti':'n11',
+  'Laura e Onísio':'n12',
+  'Claudia e Weiler':'n12',
+  'Patricia':'n12',
+  'Dr Mauro e Paula':'n12',
+  'Solon e Karine':'n13',
+  'Cristina e Família':'n13',
+  'Milena':'n13',
+  'Pâmela':'n13',
+  'Estela e César':'n13',
+  'Jair Junior':'n13',
+  'Joice Heloise':'n14',
+  'Virgínia':'n14',
+  'Irene (Groba)':'n14',
+  'Irene (Tavares)':'n14',
+  'Dedei':'n14',
+  'Rosário':'n14',
+  'Elizabeth':'n14',
+  'Dayze':'n14',
+};
+
+const DEFAULT_RULES = [['Marcelo Nery e Família','Fabio, Bruna e família']];
+
+// ============================================================
+// ESTADO
+// ============================================================
+const LS_KEY = 'casamento-mesas-v4';
+let state = load();
+
+function suggestionState(){
+  const a = {};
+  GUESTS.forEach(g => a[g.id] = SUGGESTION[g.cv] || null);
+  return {
+    assign:a,
+    tables:JSON.parse(JSON.stringify(DEFAULT_TABLES)),
+    rules:JSON.parse(JSON.stringify(DEFAULT_RULES)),
+    noivaAdded:true,
+  };
+}
+function load(){
+  let s = null;
+  try {
+    const p = JSON.parse(localStorage.getItem(LS_KEY));
+    if (p && p.assign && p.tables) s = p;
+  } catch(e){}
+  if (!s) s = suggestionState();
+  // migração: adiciona convidados/mesas da noiva a estados salvos antes dessa versão
+  if (!s.noivaAdded){
+    const usedSlots = new Set(s.tables.map(t=>t.slot));
+    DEFAULT_TABLES.filter(t => t.id.startsWith('n')).forEach(nt => {
+      let slot = 0; while (usedSlots.has(slot)) slot++;
+      usedSlots.add(slot);
+      s.tables.push({id:nt.id, nome:nt.nome, slot});
+    });
+    GUESTS.forEach(g => { if (s.assign[g.id] === undefined) s.assign[g.id] = SUGGESTION[g.cv] || null; });
+    s.noivaAdded = true;
+  }
+  // migração: garante que toda mesa tem uma cor própria
+  s.tables.forEach((t,i) => { if (t.corIdx == null) t.corIdx = i % PALETTE.length; });
+  return s;
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); schedulePush(); }
+
+function resetToSuggestion(){
+  if (!confirm('Restaurar a sugestão original do Claude? Suas mudanças (inclusive posições de mesas) serão perdidas. A lista de quem não vai é mantida.')) return;
+  const out = Object.entries(state.assign).filter(([,v]) => v==='OUT').map(([k]) => k);
+  state = suggestionState();
+  out.forEach(k => state.assign[k] = 'OUT');
+  save(); render();
+}
+function clearAll(){
+  if (!confirm('Tirar todo mundo das mesas? (a lista de quem não vai é mantida)')) return;
+  Object.keys(state.assign).forEach(k => { if (state.assign[k] !== 'OUT') state.assign[k] = null; });
+  save(); render();
+}
+
+// ============================================================
+// MESAS: adicionar / remover / mover
+// ============================================================
+function tableLabel(t){ return 'M' + (state.tables.findIndex(x=>x.id===t.id)+1); }
+function addTable(slot){
+  if (state.tables.length >= MAX_SLOTS) return alert('Limite de '+MAX_SLOTS+' mesas.');
+  const used = new Set(state.tables.map(t=>t.slot));
+  if (slot === undefined || used.has(slot)){
+    slot = 0; while (used.has(slot)) slot++;
+  }
+  const id = 't' + (Date.now()%1e7);
+  // pega a primeira cor da paleta ainda não usada
+  const usedColors = new Set(state.tables.map(t=>t.corIdx));
+  let corIdx = 0; while (usedColors.has(corIdx) && corIdx < PALETTE.length-1) corIdx++;
+  state.tables.push({id, nome:'Nova mesa', slot, corIdx});
+  save(); render();
+}
+function removeTable(id){
+  // sem confirm() (Chrome pode suprimir diálogos); ocupantes voltam visíveis em "Sem mesa"
+  const occupants = GUESTS.filter(g => state.assign[g.id] === id);
+  occupants.forEach(g => state.assign[g.id] = null);
+  state.tables = state.tables.filter(t => t.id !== id);
+  save(); render();
+}
+function moveTable(id, targetSlot){
+  const t = state.tables.find(t=>t.id===id);
+  const other = state.tables.find(x => x.slot === targetSlot && x.id !== id);
+  if (other) other.slot = t.slot;  // troca de posição
+  t.slot = targetSlot;
+  save(); render();
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+const floor = document.getElementById('floor');
+
+function chipHTML(g){
+  const icon = g.t==='c' ? ' 🧒' : g.t==='b' ? ' 👶' : '';
+  const out = state.assign[g.id] === 'OUT';
+  const btn = out
+    ? `<button class="x volta" data-restore="${g.id}" title="Voltar (para a mesa do convite)">↩</button>`
+    : `<button class="x" data-out="${g.id}" title="Essa pessoa não vai (cancela só ela)">🚫</button>`;
+  return `<div class="chip" draggable="true" data-id="${g.id}" title="Convite: ${g.cv} · ${AREAS[g.ar].nome}">
+    ${g.n}${icon}<span class="tag">${g.cv}</span>${btn}</div>`;
+}
+
+function render(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const bySlot = {};
+  state.tables.forEach(t => bySlot[t.slot] = t);
+  const maxSlot = Math.max(MAX_SLOTS-1, ...state.tables.map(t=>t.slot));
+  const nSlots = Math.min(MAX_SLOTS, Math.ceil((maxSlot+1)/COLS)*COLS);
+
+  let html = '';
+  for (let s = 0; s < nSlots; s++){
+    const t = bySlot[s];
+    if (!t){
+      html += `<div class="slot empty" data-slot="${s}" onclick="addTable(${s})" title="Clique para criar mesa aqui">+ mesa</div>`;
+      continue;
+    }
+    const guests = GUESTS.filter(g => state.assign[g.id] === t.id);
+    const seated = guests.filter(g => g.t !== 'b').length;
+    const cls = seated > CAPACITY ? 'over' : seated === CAPACITY ? 'full' : '';
+    // cor é DA MESA (escolhida pelo usuário), não das pessoas
+    const [corClara, corEscura] = PALETTE[t.corIdx % PALETTE.length];
+    html += `<div class="slot" data-slot="${s}">
+      <div class="table-card" data-table="${t.id}" style="border-color:${corEscura}">
+        <h3 draggable="true" data-move-table="${t.id}" style="background:${corClara}" title="Arraste para trocar a mesa de posição">
+          <span class="grip">⠿</span>
+          <span class="colorDot" data-color-table="${t.id}" style="background:${corEscura}" title="Trocar a cor da mesa"></span>
+          ${tableLabel(t)} ·
+          <span class="tname" contenteditable="true" data-table-name="${t.id}">${t.nome}</span>
+          <span class="count ${cls}">${seated}/${CAPACITY}</span>
+          <button class="del" data-del-table="${t.id}" title="Remover mesa">✕</button>
+        </h3>
+        <div class="chips">${guests.map(chipHTML).join('')}</div>
+      </div>
+    </div>`;
+  }
+  floor.innerHTML = html;
+
+  // pool / não vão
+  const unassigned = GUESTS.filter(g => !state.assign[g.id]);
+  document.querySelector('#pool .chips').innerHTML = unassigned.map(chipHTML).join('');
+  const out = GUESTS.filter(g => state.assign[g.id] === 'OUT');
+  document.querySelector('#pool-out .chips').innerHTML = out.map(chipHTML).join('');
+  document.getElementById('out-title').textContent = `🚫 Não vão (${out.length})`;
+
+  // busca
+  if (q) document.querySelectorAll('.chip').forEach(el => {
+    const g = GUESTS[+el.dataset.id];
+    const hit = g.n.toLowerCase().includes(q) || g.cv.toLowerCase().includes(q);
+    el.classList.toggle('hl', hit); el.classList.toggle('dim', !hit);
+  });
+
+  // stats
+  const seatedTotal = GUESTS.filter(g => g.t!=='b' && state.assign[g.id] && state.assign[g.id]!=='OUT').length;
+  const totalSeats = state.tables.length * CAPACITY;
+  document.getElementById('stats').textContent =
+    `${GUESTS.length - out.length} pessoas · ${seatedTotal} sentados / ${totalSeats} lugares (${state.tables.length} mesas) · ${unassigned.length} sem mesa · ${out.length} não vão`;
+
+  renderWarnings();
+  renderRules();
+  wireDnD();
+}
+
+// ============================================================
+// REGRAS DE DISTÂNCIA (usa posição do slot na grade)
+// ============================================================
+function tablesOf(cv){
+  const ids = new Set(GUESTS.filter(g => g.cv===cv).map(g => state.assign[g.id])
+    .filter(v => v && v!=='OUT'));
+  return [...ids];
+}
+function slotRC(tid){
+  const t = state.tables.find(t=>t.id===tid);
+  return t ? [Math.floor(t.slot/COLS), t.slot%COLS] : null;
+}
+function areAdjacent(t1, t2){
+  const a = slotRC(t1), b = slotRC(t2);
+  if (!a || !b) return false;
+  return Math.max(Math.abs(a[0]-b[0]), Math.abs(a[1]-b[1])) <= 1;
+}
+function renderWarnings(){
+  const out = [];
+  const la = tid => { const t = state.tables.find(t=>t.id===tid); return t ? tableLabel(t) : '?'; };
+  for (const [cvA, cvB] of state.rules){
+    const tsA = tablesOf(cvA), tsB = tablesOf(cvB);
+    if (!tsA.length || !tsB.length) continue;
+    let same = false, near = false;
+    for (const a of tsA) for (const b of tsB){
+      if (a === b) same = true;
+      else if (areAdjacent(a,b)) near = true;
+    }
+    if (same) out.push(`<div class="warn bad">🚨 "${cvA}" e "${cvB}" estão na MESMA mesa!</div>`);
+    else if (near) out.push(`<div class="warn near">⚠️ "${cvA}" (${tsA.map(la)}) e "${cvB}" (${tsB.map(la)}) estão em mesas vizinhas.</div>`);
+    else out.push(`<div class="warn ok">✓ "${cvA}" (${tsA.map(la)}) e "${cvB}" (${tsB.map(la)}) estão longe um do outro.</div>`);
+  }
+  document.getElementById('warnings').innerHTML = out.join('');
+}
+function renderRules(){
+  const convites = [...new Set(GUESTS.map(g=>g.cv))].sort();
+  const opts = convites.map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('rule-a').innerHTML = opts;
+  document.getElementById('rule-b').innerHTML = opts;
+  document.getElementById('rules-list').innerHTML = state.rules.map(([a,b],i) =>
+    `<div class="rule">• ${a} ↔ ${b} <button onclick="removeRule(${i})">remover</button></div>`).join('');
+}
+function addRule(){
+  const a = document.getElementById('rule-a').value, b = document.getElementById('rule-b').value;
+  if (a===b) return alert('Escolha dois convites diferentes.');
+  state.rules.push([a,b]); save(); render();
+}
+function removeRule(i){ state.rules.splice(i,1); save(); render(); }
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+function wireDnD(){
+  // chips (convidados)
+  document.querySelectorAll('.chip').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', 'guest:' + el.dataset.id);
+    });
+    // soltou FORA de qualquer mesa/caixa → convite vai para "Sem mesa"
+    el.addEventListener('dragend', e => {
+      if (e.dataTransfer.dropEffect !== 'none') return; // caiu numa zona válida
+      const g = GUESTS[+el.dataset.id];
+      if (!state.assign[g.id] || state.assign[g.id] === 'OUT') return; // já está fora/cancelado
+      const movers = GUESTS.filter(x => x.cv === g.cv &&
+        state.assign[x.id] && state.assign[x.id] !== 'OUT');
+      movers.forEach(m => state.assign[m.id] = null);
+      save(); render();
+    });
+  });
+  // títulos de mesa (mover mesa)
+  document.querySelectorAll('[data-move-table]').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      e.stopPropagation();
+      e.dataTransfer.setData('text/plain', 'table:' + el.dataset.moveTable);
+    });
+  });
+  // dropzones: mesas, pool, não-vão, slots vazios
+  // IMPORTANTE: registra cada zona UMA vez só (pool/não-vão sobrevivem ao render;
+  // sem essa guarda os listeners acumulavam e o drop disparava N vezes)
+  document.querySelectorAll('[data-table], .slot.empty').forEach(zone => {
+    if (zone.dataset.wired) return;
+    zone.dataset.wired = '1';
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
+      const data = e.dataTransfer.getData('text/plain');
+      if (data.startsWith('table:')){
+        const tid = data.slice(6);
+        const slotEl = zone.closest('.slot');
+        if (!slotEl) return; // soltou no pool — ignora
+        moveTable(tid, +slotEl.dataset.slot);
+        return;
+      }
+      if (!data.startsWith('guest:')) return;
+      if (zone.classList.contains('empty')) return; // convidado em slot vazio — ignora
+      const id = +data.slice(6);
+      const target = zone.dataset.table || null;
+      const g = GUESTS[id];
+      if (target === 'OUT'){
+        // cancelamento é INDIVIDUAL e direto (sem confirm — o ↩ desfaz fácil;
+        // confirm() dentro de drop trava o drag-and-drop no Chrome)
+        state.assign[g.id] = 'OUT';
+      } else if (state.assign[g.id] === 'OUT'){
+        // restaurar alguém cancelado: volta individualmente, mas SEMPRE junto do convite
+        const mate = GUESTS.find(x => x.cv === g.cv && x.id !== g.id &&
+          state.assign[x.id] && state.assign[x.id] !== 'OUT');
+        state.assign[g.id] = mate ? state.assign[mate.id] : target;
+      } else {
+        // mover de mesa é SEMPRE o convite inteiro (menos quem não vai)
+        const movers = GUESTS.filter(x => x.cv === g.cv && state.assign[x.id] !== 'OUT');
+        movers.forEach(m => state.assign[m.id] = target);
+      }
+      save(); render();
+    });
+  });
+  // botões 🚫 / ↩ — sempre INDIVIDUAIS (cancela/restaura uma pessoa só)
+  // SEM confirm(): o Chrome pode suprimir diálogos (aí o clique "não funciona");
+  // a ação é reversível pelo ↩, não precisa de confirmação
+  document.querySelectorAll('[data-out]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation(); e.preventDefault();
+      const g = GUESTS[+btn.dataset.out];
+      state.assign[g.id] = 'OUT';
+      save(); render();
+    });
+  });
+  document.querySelectorAll('[data-restore]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const g = GUESTS[+btn.dataset.restore];
+      // ao restaurar, volta direto para a mesa onde o convite está (se houver)
+      const mate = GUESTS.find(x => x.cv === g.cv && x.id !== g.id &&
+        state.assign[x.id] && state.assign[x.id] !== 'OUT');
+      state.assign[g.id] = mate ? state.assign[mate.id] : null;
+      save(); render();
+    });
+  });
+  // remover mesa
+  document.querySelectorAll('[data-del-table]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); removeTable(btn.dataset.delTable); });
+  });
+  // trocar cor da mesa (clique na bolinha cicla a paleta)
+  document.querySelectorAll('[data-color-table]').forEach(dot => {
+    dot.addEventListener('click', e => {
+      e.stopPropagation();
+      const t = state.tables.find(t=>t.id===dot.dataset.colorTable);
+      if (t){ t.corIdx = (t.corIdx + 1) % PALETTE.length; save(); render(); }
+    });
+    dot.addEventListener('mousedown', e => e.stopPropagation());
+  });
+  // nome editável
+  document.querySelectorAll('[data-table-name]').forEach(el => {
+    el.addEventListener('blur', () => {
+      const t = state.tables.find(t=>t.id===el.dataset.tableName);
+      if (t){ t.nome = el.textContent.trim(); save(); }
+    });
+    el.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); el.blur(); } });
+    el.addEventListener('mousedown', e => e.stopPropagation());
+  });
+}
+
+// ============================================================
+// EXPORT / IMPORT / RESUMO
+// ============================================================
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'mesas-casamento.json'; a.click();
+}
+function importJSON(){
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
+  inp.onchange = () => {
+    const r = new FileReader();
+    r.onload = () => { try { state = JSON.parse(r.result); save(); render(); } catch(e){ alert('Arquivo inválido'); } };
+    r.readAsText(inp.files[0]);
+  };
+  inp.click();
+}
+function copySummary(){
+  let txt = 'ALOCAÇÃO DE MESAS — CONVIDADOS DO NOIVO\n\n';
+  const ordered = [...state.tables].sort((a,b)=>a.slot-b.slot);
+  for (const t of ordered){
+    const gs = GUESTS.filter(g => state.assign[g.id] === t.id);
+    if (!gs.length) continue;
+    const seated = gs.filter(g=>g.t!=='b').length;
+    txt += `${tableLabel(t)} — ${t.nome} (${seated}/${CAPACITY})\n`;
+    const byCv = {};
+    gs.forEach(g => (byCv[g.cv] = byCv[g.cv]||[]).push(g));
+    for (const cv in byCv)
+      txt += `  • ${cv}: ${byCv[cv].map(g => g.n + (g.t==='c'?' (criança)':g.t==='b'?' (colo)':'')).join(', ')}\n`;
+    txt += '\n';
+  }
+  const un = GUESTS.filter(g => !state.assign[g.id]);
+  if (un.length) txt += `SEM MESA: ${un.map(g=>g.n).join(', ')}\n\n`;
+  const out = GUESTS.filter(g => state.assign[g.id] === 'OUT');
+  if (out.length){
+    txt += `🚫 NÃO VÃO (${out.length}):\n`;
+    const byCv = {};
+    out.forEach(g => (byCv[g.cv] = byCv[g.cv]||[]).push(g.n));
+    for (const cv in byCv) txt += `  • ${cv}: ${byCv[cv].join(', ')}\n`;
+  }
+  navigator.clipboard.writeText(txt).then(()=>alert('Resumo copiado!'));
+}
+
+// ============================================================
+// SINCRONIZAÇÃO SUPABASE (ao vivo) — mesmo padrão do board-prioridades
+// ============================================================
+const uid = () => Math.random().toString(36).slice(2,9);
+let sb=null, myId=uid(), pushTimer=null, suppressPush=false, pendingRemote=null;
+// booted: trava qualquer push até a 1ª busca remota terminar, senão um navegador
+// com localStorage antigo empurra estado velho por cima do servidor no boot.
+let booted=false;
+function connected(){ return !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase); }
+function setConn(txt,color){ const c=document.getElementById("conn"); if(c){ c.textContent="● "+txt; c.style.color=color; } }
+
+function schedulePush(){
+  if(!connected() || suppressPush) return;
+  if(!booted) return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(pushState, 400);
+}
+async function pushState(){
+  if(!connected()) return;
+  try{
+    await sb.from("board_state").upsert({ id:ROOM, data:state, updated_by:myId, updated_at:new Date().toISOString() });
+  }catch(e){ console.warn("push falhou", e); setConn("erro ao salvar","#e3392f"); }
+}
+function applyRemote(data){
+  if(!data) return;
+  const ae=document.activeElement;
+  if(ae && ae.isContentEditable){ pendingRemote=data; return; }   // não atrapalha quem está editando nome de mesa
+  suppressPush=true; state=data; save(); render(); suppressPush=false;
+}
+document.addEventListener("blur",()=>{ if(pendingRemote){ const d=pendingRemote; pendingRemote=null; applyRemote(d); } }, true);
+
+async function initSupabase(){
+  if(!connected()){ booted=true; setConn("local","#9b9b9b"); return; }
+  setConn("conectando…","#f5c518");
+  try{
+    sb=window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data, error } = await sb.from("board_state").select("data").eq("id",ROOM).maybeSingle();
+    if(error) throw error;
+    if(data && data.data){ suppressPush=true; state=data.data; save(); render(); suppressPush=false; booted=true; }
+    else { booted=true; await pushState(); }   // primeira vez: cria a linha com o estado atual
+  }catch(e){ booted=true; console.warn("conexão falhou", e); setConn("erro de conexão","#e3392f"); return; }
+
+  sb.channel("board_"+ROOM)
+    .on("postgres_changes",
+        { event:"*", schema:"public", table:"board_state", filter:"id=eq."+ROOM },
+        (p)=>{ const row=p.new; if(!row || row.updated_by===myId) return; applyRemote(row.data); })
+    .subscribe((status)=>{ if(status==="SUBSCRIBED") setConn("ao vivo","#46c93a"); });
+}
+
+render();
+initSupabase();
+</script>
+</body>
+</html>
