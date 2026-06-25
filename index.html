@@ -109,6 +109,56 @@
   .rules select { font-size:12.5px; padding:4px; border-radius:6px; border:1px solid #9bb8a4; max-width:220px; }
   .rules button { font-size:12px; padding:3px 9px; border-radius:6px; border:1px solid #888; background:#fff; cursor:pointer; }
 
+  /* ----- modal de convites ----- */
+  .modal-bg {
+    position:fixed; inset:0; background:rgba(20,40,25,.45); z-index:100;
+    display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; overflow-y:auto;
+  }
+  .modal-bg[hidden] { display:none; }
+  .modal {
+    background:#fff; border-radius:14px; width:100%; max-width:560px; padding:18px 20px 20px;
+    box-shadow:0 12px 40px rgba(0,0,0,.3);
+  }
+  .modal h2 { font-size:18px; color:#2d4a33; margin-bottom:2px; display:flex; align-items:center; }
+  .modal h2 .close { margin-left:auto; border:none; background:none; font-size:22px; cursor:pointer; color:#888; line-height:1; }
+  .modal h2 .close:hover { color:#222; }
+  .modal .sub { font-size:12.5px; color:#666; margin-bottom:12px; }
+  .modal label.fld { display:block; font-size:12px; font-weight:700; color:#2d4a33; margin:10px 0 3px; }
+  .modal input[type=text], .modal select, .modal textarea {
+    width:100%; padding:7px 9px; border:1.5px solid #9bb8a4; border-radius:8px; font-size:13px; font-family:inherit;
+  }
+  .modal textarea { min-height:120px; resize:vertical; }
+  .modal .tabs { display:flex; gap:6px; margin:6px 0 4px; flex-wrap:wrap; }
+  .modal .tabs button {
+    flex:1; min-width:100px; border:1.5px solid #b8cfc0; background:#f4f9f5; color:#3a5a42;
+    border-radius:8px; padding:8px 6px; font-size:12.5px; font-weight:700; cursor:pointer;
+  }
+  .modal .tabs button.active { background:#2d6da4; border-color:#2d6da4; color:#fff; }
+  .modal .pane { display:none; }
+  .modal .pane.active { display:block; }
+  .modal .person-row { display:flex; gap:6px; margin-bottom:6px; align-items:center; }
+  .modal .person-row input { flex:1; }
+  .modal .person-row select { flex:0 0 130px; }
+  .modal .person-row .rm { border:1px solid #d9a0a0; background:#fde2e2; color:#7a3030;
+    border-radius:7px; padding:6px 9px; cursor:pointer; font-size:13px; }
+  .modal .actions { display:flex; gap:8px; margin-top:14px; }
+  .modal .actions .go { background:#2d7d3f; border:1.5px solid #2d7d3f; color:#fff; font-weight:700;
+    border-radius:8px; padding:9px 16px; font-size:13.5px; cursor:pointer; flex:1; }
+  .modal .actions .go:hover { background:#256a35; }
+  .modal .ghost { background:#fff; border:1.5px solid #9bb8a4; color:#3a5a42; border-radius:8px;
+    padding:8px 12px; font-size:13px; cursor:pointer; font-weight:600; }
+  .modal .hint { font-size:12px; color:#777; margin-top:5px; line-height:1.45; }
+  .modal .preview { font-size:12.5px; background:#f4f9f5; border:1px solid #cfe0d4; border-radius:8px;
+    padding:8px 10px; margin-top:8px; max-height:160px; overflow-y:auto; white-space:pre-wrap; }
+  .modal .preview.bad { background:#fde2e2; border-color:#c95c5c; color:#7a2020; }
+  .existing { margin-top:16px; border-top:1.5px solid #e1ebe3; padding-top:10px; }
+  .existing h3 { font-size:13px; color:#2d4a33; margin-bottom:6px; }
+  .existing .ex-row { display:flex; align-items:center; gap:8px; font-size:12.5px; padding:3px 0; }
+  .existing .ex-row .nm { flex:1; }
+  .existing .ex-row .cnt { color:#777; }
+  .existing .ex-row .del { border:1px solid #d9a0a0; background:#fde2e2; color:#7a3030;
+    border-radius:6px; padding:2px 8px; cursor:pointer; font-size:12px; }
+
   @media print {
     .toolbar, .rules, #search, label.toggle, .slot.empty, .chip .x, .table-card h3 .del, .table-card h3 .grip { display:none !important; }
     body { background:#fff; }
@@ -125,6 +175,7 @@
   <button onclick="resetToSuggestion()">↺ Restaurar sugestão</button>
   <button onclick="clearAll()" class="danger">✕ Esvaziar mesas</button>
   <button onclick="addTable()">➕ Nova mesa</button>
+  <button onclick="openConvite()" style="border-color:#2d6da4; color:#1d4e7a">👪 Convites</button>
   <button onclick="exportJSON()">⬇ Exportar</button>
   <button onclick="importJSON()">⬆ Importar</button>
   <button onclick="copySummary()">📋 Copiar resumo</button>
@@ -163,6 +214,62 @@
   <div class="rule">
     <select id="rule-a"></select> ↔ <select id="rule-b"></select>
     <button onclick="addRule()">+ adicionar</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="convite-modal" hidden onclick="if(event.target===this)closeConvite()">
+  <div class="modal">
+    <h2>👪 Convites <button class="close" onclick="closeConvite()" title="Fechar">×</button></h2>
+    <div class="sub">Adicione convidados que não estavam na lista. Eles entram em “Sem mesa” e sincronizam pra Luisa também.</div>
+
+    <div class="tabs">
+      <button data-tab="manual" class="active" onclick="conviteTab('manual')">✍️ Manual</button>
+      <button data-tab="colar" onclick="conviteTab('colar')">📋 Colar lista</button>
+      <button data-tab="csv" onclick="conviteTab('csv')">📄 Planilha (CSV)</button>
+    </div>
+
+    <!-- MANUAL -->
+    <div class="pane active" data-pane="manual">
+      <label class="fld">Nome do convite</label>
+      <input type="text" id="m-cv" placeholder="Ex.: João, Maria e família">
+      <label class="fld">Área</label>
+      <select id="m-area"></select>
+      <label class="fld">Pessoas</label>
+      <div id="m-people"></div>
+      <button class="ghost" onclick="addPersonRow()">+ pessoa</button>
+      <div class="actions">
+        <button class="go" onclick="submitManual()">Criar convite</button>
+      </div>
+    </div>
+
+    <!-- COLAR -->
+    <div class="pane" data-pane="colar">
+      <label class="fld">Nome do convite</label>
+      <input type="text" id="c-cv" placeholder="Ex.: Tios da Bahia">
+      <label class="fld">Área</label>
+      <select id="c-area"></select>
+      <label class="fld">Pessoas (uma por linha)</label>
+      <textarea id="c-text" placeholder="Maria Silva&#10;João Silva&#10;Pedrinho (criança)&#10;Bebê Ana (colo)"></textarea>
+      <div class="hint">Uma pessoa por linha. Marque <b>(criança)</b> ou <b>(colo)</b> no fim do nome quando precisar — o resto é tratado como adulto.</div>
+      <div class="actions">
+        <button class="go" onclick="submitColar()">Adicionar convite</button>
+      </div>
+    </div>
+
+    <!-- CSV -->
+    <div class="pane" data-pane="csv">
+      <label class="fld">Arquivo da planilha (.csv)</label>
+      <input type="file" id="csv-file" accept=".csv,text/csv" onchange="previewCSV()">
+      <label class="fld">Área padrão (quando não for “Convidado Noiva”)</label>
+      <select id="csv-area"></select>
+      <div class="hint">Lê o formato da sua lista de casamento (colunas <b>Nome do convite</b>, <b>Nome dos convidados</b>, <b>Faixa etária</b>, <b>Grupo do convite</b>). Linhas “Noiva” vão para a área da Noiva; o resto usa a área padrão acima.</div>
+      <div class="preview" id="csv-preview" style="display:none"></div>
+      <div class="actions">
+        <button class="go" id="csv-go" onclick="submitCSV()" disabled>Importar</button>
+      </div>
+    </div>
+
+    <div class="existing" id="existing-convites"></div>
   </div>
 </div>
 
@@ -553,6 +660,7 @@ function suggestionState(){
     tables:JSON.parse(JSON.stringify(DEFAULT_TABLES)),
     rules:JSON.parse(JSON.stringify(DEFAULT_RULES)),
     noivaAdded:true,
+    customGuests:[],
   };
 }
 function load(){
@@ -575,15 +683,36 @@ function load(){
   }
   // migração: garante que toda mesa tem uma cor própria
   s.tables.forEach((t,i) => { if (t.corIdx == null) t.corIdx = i % PALETTE.length; });
+  // convites criados pela interface (persistem e sincronizam junto do resto do estado)
+  if (!Array.isArray(s.customGuests)) s.customGuests = [];
   return s;
 }
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); schedulePush(); }
 
+// ============================================================
+// LISTA EFETIVA DE CONVIDADOS = fixos no código + convites criados na interface
+// (os fixos têm id numérico = índice; os criados têm id string "g_xxxx")
+// ============================================================
+let ALLG = [], gByIdMap = {};
+function rebuildGuests(){
+  ALLG = GUESTS.concat(state.customGuests || []);
+  gByIdMap = {};
+  ALLG.forEach(g => {
+    gByIdMap[g.id] = g;
+    if (state.assign[g.id] === undefined) state.assign[g.id] = null; // novo convidado começa "sem mesa"
+  });
+}
+function gById(id){ return gByIdMap[id]; }
+function areaName(ar){ return (AREAS[ar] && AREAS[ar].nome) || ar || '—'; }
+
 function resetToSuggestion(){
   if (!confirm('Restaurar a sugestão original do Claude? Suas mudanças (inclusive posições de mesas) serão perdidas. A lista de quem não vai é mantida.')) return;
   const out = Object.entries(state.assign).filter(([,v]) => v==='OUT').map(([k]) => k);
+  const custom = state.customGuests || [];
   state = suggestionState();
-  out.forEach(k => state.assign[k] = 'OUT');
+  state.customGuests = custom;                       // mantém os convites criados na interface
+  custom.forEach(g => { state.assign[g.id] = null; });// voltam para "Sem mesa"
+  out.forEach(k => state.assign[k] = 'OUT');          // preserva quem não vai (inclusive criados)
   save(); render();
 }
 function clearAll(){
@@ -611,7 +740,7 @@ function addTable(slot){
 }
 function removeTable(id){
   // sem confirm() (Chrome pode suprimir diálogos); ocupantes voltam visíveis em "Sem mesa"
-  const occupants = GUESTS.filter(g => state.assign[g.id] === id);
+  const occupants = ALLG.filter(g => state.assign[g.id] === id);
   occupants.forEach(g => state.assign[g.id] = null);
   state.tables = state.tables.filter(t => t.id !== id);
   save(); render();
@@ -635,11 +764,12 @@ function chipHTML(g){
   const btn = out
     ? `<button class="x volta" data-restore="${g.id}" title="Voltar (para a mesa do convite)">↩</button>`
     : `<button class="x" data-out="${g.id}" title="Essa pessoa não vai (cancela só ela)">🚫</button>`;
-  return `<div class="chip" draggable="true" data-id="${g.id}" title="Convite: ${g.cv} · ${AREAS[g.ar].nome}">
+  return `<div class="chip" draggable="true" data-id="${g.id}" title="Convite: ${g.cv} · ${areaName(g.ar)}">
     ${g.n}${icon}<span class="tag">${g.cv}</span>${btn}</div>`;
 }
 
 function render(){
+  rebuildGuests();   // garante que convites criados na interface entram na lista
   const q = document.getElementById('search').value.trim().toLowerCase();
   const bySlot = {};
   state.tables.forEach(t => bySlot[t.slot] = t);
@@ -653,7 +783,7 @@ function render(){
       html += `<div class="slot empty" data-slot="${s}" onclick="addTable(${s})" title="Clique para criar mesa aqui">+ mesa</div>`;
       continue;
     }
-    const guests = GUESTS.filter(g => state.assign[g.id] === t.id);
+    const guests = ALLG.filter(g => state.assign[g.id] === t.id);
     const seated = guests.filter(g => g.t !== 'b').length;
     const cls = seated > CAPACITY ? 'over' : seated === CAPACITY ? 'full' : '';
     // cor é DA MESA (escolhida pelo usuário), não das pessoas
@@ -675,24 +805,24 @@ function render(){
   floor.innerHTML = html;
 
   // pool / não vão
-  const unassigned = GUESTS.filter(g => !state.assign[g.id]);
+  const unassigned = ALLG.filter(g => !state.assign[g.id]);
   document.querySelector('#pool .chips').innerHTML = unassigned.map(chipHTML).join('');
-  const out = GUESTS.filter(g => state.assign[g.id] === 'OUT');
+  const out = ALLG.filter(g => state.assign[g.id] === 'OUT');
   document.querySelector('#pool-out .chips').innerHTML = out.map(chipHTML).join('');
   document.getElementById('out-title').textContent = `🚫 Não vão (${out.length})`;
 
   // busca
   if (q) document.querySelectorAll('.chip').forEach(el => {
-    const g = GUESTS[+el.dataset.id];
+    const g = gById(el.dataset.id);
     const hit = g.n.toLowerCase().includes(q) || g.cv.toLowerCase().includes(q);
     el.classList.toggle('hl', hit); el.classList.toggle('dim', !hit);
   });
 
   // stats
-  const seatedTotal = GUESTS.filter(g => g.t!=='b' && state.assign[g.id] && state.assign[g.id]!=='OUT').length;
+  const seatedTotal = ALLG.filter(g => g.t!=='b' && state.assign[g.id] && state.assign[g.id]!=='OUT').length;
   const totalSeats = state.tables.length * CAPACITY;
   document.getElementById('stats').textContent =
-    `${GUESTS.length - out.length} pessoas · ${seatedTotal} sentados / ${totalSeats} lugares (${state.tables.length} mesas) · ${unassigned.length} sem mesa · ${out.length} não vão`;
+    `${ALLG.length - out.length} pessoas · ${seatedTotal} sentados / ${totalSeats} lugares (${state.tables.length} mesas) · ${unassigned.length} sem mesa · ${out.length} não vão`;
 
   renderWarnings();
   renderRules();
@@ -703,7 +833,7 @@ function render(){
 // REGRAS DE DISTÂNCIA (usa posição do slot na grade)
 // ============================================================
 function tablesOf(cv){
-  const ids = new Set(GUESTS.filter(g => g.cv===cv).map(g => state.assign[g.id])
+  const ids = new Set(ALLG.filter(g => g.cv===cv).map(g => state.assign[g.id])
     .filter(v => v && v!=='OUT'));
   return [...ids];
 }
@@ -734,7 +864,7 @@ function renderWarnings(){
   document.getElementById('warnings').innerHTML = out.join('');
 }
 function renderRules(){
-  const convites = [...new Set(GUESTS.map(g=>g.cv))].sort();
+  const convites = [...new Set(ALLG.map(g=>g.cv))].sort();
   const opts = convites.map(c=>`<option>${c}</option>`).join('');
   document.getElementById('rule-a').innerHTML = opts;
   document.getElementById('rule-b').innerHTML = opts;
@@ -760,9 +890,9 @@ function wireDnD(){
     // soltou FORA de qualquer mesa/caixa → convite vai para "Sem mesa"
     el.addEventListener('dragend', e => {
       if (e.dataTransfer.dropEffect !== 'none') return; // caiu numa zona válida
-      const g = GUESTS[+el.dataset.id];
+      const g = gById(el.dataset.id);
       if (!state.assign[g.id] || state.assign[g.id] === 'OUT') return; // já está fora/cancelado
-      const movers = GUESTS.filter(x => x.cv === g.cv &&
+      const movers = ALLG.filter(x => x.cv === g.cv &&
         state.assign[x.id] && state.assign[x.id] !== 'OUT');
       movers.forEach(m => state.assign[m.id] = null);
       save(); render();
@@ -795,21 +925,21 @@ function wireDnD(){
       }
       if (!data.startsWith('guest:')) return;
       if (zone.classList.contains('empty')) return; // convidado em slot vazio — ignora
-      const id = +data.slice(6);
+      const id = data.slice(6);
       const target = zone.dataset.table || null;
-      const g = GUESTS[id];
+      const g = gById(id);
       if (target === 'OUT'){
         // cancelamento é INDIVIDUAL e direto (sem confirm — o ↩ desfaz fácil;
         // confirm() dentro de drop trava o drag-and-drop no Chrome)
         state.assign[g.id] = 'OUT';
       } else if (state.assign[g.id] === 'OUT'){
         // restaurar alguém cancelado: volta individualmente, mas SEMPRE junto do convite
-        const mate = GUESTS.find(x => x.cv === g.cv && x.id !== g.id &&
+        const mate = ALLG.find(x => x.cv === g.cv && x.id !== g.id &&
           state.assign[x.id] && state.assign[x.id] !== 'OUT');
         state.assign[g.id] = mate ? state.assign[mate.id] : target;
       } else {
         // mover de mesa é SEMPRE o convite inteiro (menos quem não vai)
-        const movers = GUESTS.filter(x => x.cv === g.cv && state.assign[x.id] !== 'OUT');
+        const movers = ALLG.filter(x => x.cv === g.cv && state.assign[x.id] !== 'OUT');
         movers.forEach(m => state.assign[m.id] = target);
       }
       save(); render();
@@ -821,7 +951,7 @@ function wireDnD(){
   document.querySelectorAll('[data-out]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation(); e.preventDefault();
-      const g = GUESTS[+btn.dataset.out];
+      const g = gById(btn.dataset.out);
       state.assign[g.id] = 'OUT';
       save(); render();
     });
@@ -829,9 +959,9 @@ function wireDnD(){
   document.querySelectorAll('[data-restore]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const g = GUESTS[+btn.dataset.restore];
+      const g = gById(btn.dataset.restore);
       // ao restaurar, volta direto para a mesa onde o convite está (se houver)
-      const mate = GUESTS.find(x => x.cv === g.cv && x.id !== g.id &&
+      const mate = ALLG.find(x => x.cv === g.cv && x.id !== g.id &&
         state.assign[x.id] && state.assign[x.id] !== 'OUT');
       state.assign[g.id] = mate ? state.assign[mate.id] : null;
       save(); render();
@@ -882,7 +1012,7 @@ function copySummary(){
   let txt = 'ALOCAÇÃO DE MESAS — CONVIDADOS DO NOIVO\n\n';
   const ordered = [...state.tables].sort((a,b)=>a.slot-b.slot);
   for (const t of ordered){
-    const gs = GUESTS.filter(g => state.assign[g.id] === t.id);
+    const gs = ALLG.filter(g => state.assign[g.id] === t.id);
     if (!gs.length) continue;
     const seated = gs.filter(g=>g.t!=='b').length;
     txt += `${tableLabel(t)} — ${t.nome} (${seated}/${CAPACITY})\n`;
@@ -892,9 +1022,9 @@ function copySummary(){
       txt += `  • ${cv}: ${byCv[cv].map(g => g.n + (g.t==='c'?' (criança)':g.t==='b'?' (colo)':'')).join(', ')}\n`;
     txt += '\n';
   }
-  const un = GUESTS.filter(g => !state.assign[g.id]);
+  const un = ALLG.filter(g => !state.assign[g.id]);
   if (un.length) txt += `SEM MESA: ${un.map(g=>g.n).join(', ')}\n\n`;
-  const out = GUESTS.filter(g => state.assign[g.id] === 'OUT');
+  const out = ALLG.filter(g => state.assign[g.id] === 'OUT');
   if (out.length){
     txt += `🚫 NÃO VÃO (${out.length}):\n`;
     const byCv = {};
@@ -902,6 +1032,203 @@ function copySummary(){
     for (const cv in byCv) txt += `  • ${cv}: ${byCv[cv].join(', ')}\n`;
   }
   navigator.clipboard.writeText(txt).then(()=>alert('Resumo copiado!'));
+}
+
+// ============================================================
+// CONVITES NOVOS — criar (manual / colar / CSV) e remover
+// ============================================================
+function areaOptionsHTML(sel){
+  return Object.entries(AREAS).map(([k,v]) =>
+    `<option value="${k}"${k===sel?' selected':''}>${v.nome}</option>`).join('');
+}
+function openConvite(){
+  document.getElementById('m-area').innerHTML   = areaOptionsHTML('noiva');
+  document.getElementById('c-area').innerHTML   = areaOptionsHTML('noiva');
+  document.getElementById('csv-area').innerHTML = areaOptionsHTML('noiva');
+  if (!document.querySelector('#m-people .person-row')){ addPersonRow(); addPersonRow(); }
+  renderExisting();
+  document.getElementById('convite-modal').hidden = false;
+}
+function closeConvite(){ document.getElementById('convite-modal').hidden = true; }
+function conviteTab(name){
+  document.querySelectorAll('.modal .tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.modal .pane').forEach(p => p.classList.toggle('active', p.dataset.pane===name));
+}
+
+// cria os convidados em estado (id string "g_xxx"); retorna quantos entraram
+function addGuestsToState(cv, people){
+  let added = 0;
+  people.forEach(p => {
+    const nm = (p.n||'').trim();
+    if (!nm) return;
+    const id = 'g_' + Math.random().toString(36).slice(2,9) + (added++);
+    state.customGuests.push({ id, n:nm, t:p.t||'a', cv, ar:p.ar||'noiva', custom:true });
+    state.assign[id] = null;
+  });
+  return added;
+}
+
+// ----- aba MANUAL -----
+function addPersonRow(name='', t='a'){
+  const div = document.createElement('div');
+  div.className = 'person-row';
+  div.innerHTML =
+    `<input type="text" placeholder="Nome">
+     <select>
+       <option value="a"${t==='a'?' selected':''}>Adulto</option>
+       <option value="c"${t==='c'?' selected':''}>Criança 🧒</option>
+       <option value="b"${t==='b'?' selected':''}>Colo 👶</option>
+     </select>
+     <button class="rm" title="Remover" onclick="this.parentNode.remove()">✕</button>`;
+  div.querySelector('input').value = name;
+  document.getElementById('m-people').appendChild(div);
+}
+function submitManual(){
+  const cv = document.getElementById('m-cv').value.trim();
+  const ar = document.getElementById('m-area').value;
+  if (!cv) return alert('Dê um nome ao convite.');
+  const people = [...document.querySelectorAll('#m-people .person-row')]
+    .map(r => ({ n:r.querySelector('input').value.trim(), t:r.querySelector('select').value, ar }))
+    .filter(p => p.n);
+  if (!people.length) return alert('Adicione pelo menos uma pessoa.');
+  addGuestsToState(cv, people);
+  save(); render();
+  document.getElementById('m-cv').value = '';
+  document.getElementById('m-people').innerHTML = ''; addPersonRow();
+  renderExisting();
+  alert(`Convite "${cv}" criado com ${people.length} pessoa(s).`);
+}
+
+// ----- aba COLAR -----
+function lineToPerson(line, ar){
+  let n = line.trim(), t = 'a';
+  if (/\(\s*colo\s*\)|\(\s*beb[êe]\s*\)|👶/i.test(n)) t = 'b';
+  else if (/\(\s*crian[çc]a\s*\)|🧒/i.test(n)) t = 'c';
+  n = n.replace(/\(\s*(crian[çc]a|colo|beb[êe])\s*\)/ig,'').replace(/[🧒👶]/g,'').trim();
+  return { n, t, ar };
+}
+function submitColar(){
+  const cv = document.getElementById('c-cv').value.trim();
+  const ar = document.getElementById('c-area').value;
+  if (!cv) return alert('Dê um nome ao convite.');
+  const people = document.getElementById('c-text').value.split('\n')
+    .map(l => l.trim()).filter(Boolean).map(l => lineToPerson(l, ar)).filter(p => p.n);
+  if (!people.length) return alert('Cole pelo menos uma pessoa.');
+  addGuestsToState(cv, people);
+  save(); render();
+  document.getElementById('c-cv').value = ''; document.getElementById('c-text').value = '';
+  renderExisting();
+  alert(`Convite "${cv}" criado com ${people.length} pessoa(s).`);
+}
+
+// ----- aba CSV (formato da lista de casamento) -----
+function parseCSV(text){
+  const rows = []; let i=0, field='', row=[], inQ=false;
+  if (text.charCodeAt(0)===0xFEFF) text = text.slice(1);  // remove BOM
+  while (i < text.length){
+    const c = text[i];
+    if (inQ){
+      if (c==='"'){ if (text[i+1]==='"'){ field+='"'; i+=2; continue; } inQ=false; i++; continue; }
+      field+=c; i++; continue;
+    }
+    if (c==='"'){ inQ=true; i++; continue; }
+    if (c===','){ row.push(field); field=''; i++; continue; }
+    if (c==='\r'){ i++; continue; }
+    if (c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; i++; continue; }
+    field+=c; i++;
+  }
+  if (field.length || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+function csvToConvites(text, defaultAr){
+  const rows = parseCSV(text).filter(r => r.some(c => (c||'').trim() !== ''));
+  if (!rows.length) return [];
+  const head = rows[0].map(h => (h||'').trim().toLowerCase());
+  const find = (...keys) => head.findIndex(h => keys.some(k => h.includes(k)));
+  const iCv = find('nome do convite');
+  const iName = find('nome dos convidados', 'convidado');
+  const iAge = find('faixa');
+  const iGrp = find('grupo');
+  if (iName < 0) return null;   // formato não reconhecido
+  const convites = {}; let lastCv = null;
+  for (let r = 1; r < rows.length; r++){
+    const name = (rows[r][iName] || '').trim();
+    if (!name) continue;
+    let cv = iCv >= 0 ? (rows[r][iCv] || '').trim() : '';
+    if (cv) lastCv = cv; else cv = lastCv;
+    if (!cv) cv = name;        // sem agrupamento → convite individual
+    const age = iAge >= 0 ? (rows[r][iAge] || '').toLowerCase() : '';
+    const t = /crian/.test(age) ? 'c' : /beb|colo/.test(age) ? 'b' : 'a';
+    const grp = iGrp >= 0 ? (rows[r][iGrp] || '').toLowerCase() : '';
+    const ar = /noiva/.test(grp) ? 'noiva' : defaultAr;
+    (convites[cv] = convites[cv] || { cv, people:[] }).people.push({ n:name, t, ar });
+  }
+  return Object.values(convites);
+}
+function previewCSV(){
+  const f = document.getElementById('csv-file').files[0];
+  const go = document.getElementById('csv-go');
+  const pv = document.getElementById('csv-preview');
+  go.disabled = true;
+  if (!f){ pv.style.display='none'; return; }
+  const r = new FileReader();
+  r.onload = () => {
+    const convites = csvToConvites(r.result, document.getElementById('csv-area').value);
+    pv.style.display = 'block';
+    if (convites === null){ pv.className='preview bad'; pv.textContent='Não reconheci as colunas. Esperado: “Nome dos convidados”, “Nome do convite”, “Faixa etária”.'; return; }
+    if (!convites.length){ pv.className='preview bad'; pv.textContent='Nenhum convidado encontrado no arquivo.'; return; }
+    const totalP = convites.reduce((s,c)=>s+c.people.length, 0);
+    pv.className = 'preview';
+    pv.textContent = `${convites.length} convite(s), ${totalP} pessoa(s):\n` +
+      convites.slice(0,12).map(c => `• ${c.cv} (${c.people.length})`).join('\n') +
+      (convites.length > 12 ? `\n… +${convites.length-12} convites` : '');
+    go.disabled = false;
+  };
+  r.readAsText(f, 'utf-8');
+}
+function submitCSV(){
+  const f = document.getElementById('csv-file').files[0];
+  if (!f) return alert('Escolha um arquivo .csv.');
+  const r = new FileReader();
+  r.onload = () => {
+    const convites = csvToConvites(r.result, document.getElementById('csv-area').value);
+    if (!convites || !convites.length) return alert('Nada para importar.');
+    let total = 0;
+    convites.forEach(c => total += addGuestsToState(c.cv, c.people));
+    save(); render(); renderExisting();
+    document.getElementById('csv-file').value = '';
+    document.getElementById('csv-preview').style.display = 'none';
+    document.getElementById('csv-go').disabled = true;
+    alert(`Importados ${convites.length} convite(s), ${total} pessoa(s).`);
+  };
+  r.readAsText(f, 'utf-8');
+}
+
+// ----- convites criados: listar e remover -----
+function renderExisting(){
+  const el = document.getElementById('existing-convites');
+  if (!el) return;
+  const cvs = [...new Set((state.customGuests || []).map(g => g.cv))];
+  if (!cvs.length){
+    el.innerHTML = '<h3>Convites criados</h3><div class="hint">Nenhum ainda. Os convidados da lista original não aparecem aqui — só os que você adicionar.</div>';
+    return;
+  }
+  el.innerHTML = '<h3>Convites criados (' + cvs.length + ')</h3>' +
+    cvs.map(() => `<div class="ex-row"><span class="nm"></span><span class="cnt"></span><button class="del">remover</button></div>`).join('');
+  el.querySelectorAll('.ex-row').forEach((row, i) => {
+    const n = state.customGuests.filter(g => g.cv === cvs[i]).length;
+    row.querySelector('.nm').textContent = cvs[i];
+    row.querySelector('.cnt').textContent = n + ' pessoa(s)';
+    row.querySelector('.del').onclick = () => removeCustomConvite(cvs[i]);
+  });
+}
+function removeCustomConvite(cv){
+  if (!confirm(`Remover o convite "${cv}" e todas as suas pessoas?`)) return;
+  const ids = state.customGuests.filter(g => g.cv === cv).map(g => g.id);
+  state.customGuests = state.customGuests.filter(g => g.cv !== cv);
+  ids.forEach(id => delete state.assign[id]);
+  state.rules = state.rules.filter(([a,b]) => a !== cv && b !== cv);  // limpa regras órfãs
+  save(); render(); renderExisting();
 }
 
 // ============================================================
