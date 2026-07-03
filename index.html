@@ -169,40 +169,56 @@
   .tabs-main button.active { background:#2d6da4; border-color:#2d6da4; color:#fff; }
   .view[hidden] { display:none; }
 
-  /* ---------- PLANTA DO SALÃO ---------- */
-  .planta-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 6px; }
-  #planta-search { padding:10px 12px; border:2px solid #4a7a58; border-radius:10px; font-size:15px; width:min(360px,92vw); }
-  .planta-legend { font-size:12.5px; color:#4a6a52; display:flex; gap:16px; flex-wrap:wrap; margin:2px 0 8px; align-items:center; }
-  .planta-banner { font-size:14.5px; font-weight:700; margin:6px 0 10px; padding:9px 13px; border-radius:10px;
+  /* ---------- PLANTA DO SALÃO (alocador espacial) ---------- */
+  .pl-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0 6px; }
+  .pl-toolbar button { border:1.5px solid #4a7a58; background:#fff; color:#2d4a33; border-radius:8px;
+    padding:6px 12px; font-size:13px; font-weight:600; cursor:pointer; }
+  .pl-toolbar button:hover { background:#f0f7f1; }
+  #planta-search { padding:9px 12px; border:2px solid #4a7a58; border-radius:10px; font-size:15px; width:min(280px,80vw); }
+  #planta-stats { font-size:12.5px; color:#4a6a52; margin-left:auto; }
+  .planta-legend { font-size:12.5px; color:#4a6a52; display:flex; gap:16px; flex-wrap:wrap; margin:0 0 8px; align-items:center; }
+  .pl-trays { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+  #pl-pool-out .chips { max-height:66px; }
+  .pl-banner { font-size:14.5px; font-weight:700; margin:2px 0 8px; padding:9px 13px; border-radius:10px;
     background:#dff3e2; border:1.5px solid #5ca06a; color:#1f5c2d; display:none; line-height:1.5; }
-  .planta-banner.show { display:block; }
-  .planta-banner.none { background:#fdf3da; border-color:#c9a23c; color:#6e5410; }
-  .planta-wrap { overflow-x:auto; overflow-y:hidden; border:2px solid #c6d8c9; border-radius:14px; background:#eaf5ec; }
-  .planta-canvas { position:relative; transform-origin:top left; }
-  /* mesa desenhada na planta */
-  .pt { position:absolute; border-radius:50%; border:3px solid #999; background:#fff;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.18); text-align:center; overflow:hidden; }
-  .pt .lbl { font-weight:800; line-height:1; }
-  .pt .cnt { font-weight:700; opacity:.85; margin-top:1px; }
-  .pt .nm  { font-size:11px; opacity:.72; padding:0 5px; line-height:1.05; margin-top:2px; }
-  .pt.big  { border-width:5px; border-style:double; }
-  .pt .maior { position:absolute; top:4px; font-size:13px; }
-  .pt.hit  { z-index:9; animation:ptpulse 1.1s infinite; }
-  @keyframes ptpulse { 0%,100%{ box-shadow:0 0 0 4px #f5a623, 0 0 14px rgba(245,166,35,.7); } 50%{ box-shadow:0 0 0 10px rgba(245,166,35,.35); } }
-  .pt.sel  { outline:4px solid #2d6da4; outline-offset:2px; }
+  .pl-banner.show { display:block; }
+  .pl-banner.none { background:#fdf3da; border-color:#c9a23c; color:#6e5410; }
+  .pl-wrap { overflow:auto; border:2px solid #c6d8c9; border-radius:14px; background:#eaf5ec;
+    background-image:radial-gradient(#d7e8db 1.4px, transparent 1.4px); background-size:26px 26px;
+    max-height:78vh; position:relative; }
+  .pl-sizer { position:relative; }
+  .pl-canvas { position:absolute; top:0; left:0; transform-origin:0 0; }
+  /* mesa espacial = card com os nomes */
+  .ptc { position:absolute; width:215px; background:#fff; border:2px solid #999; border-radius:16px;
+    box-shadow:0 2px 8px rgba(0,0,0,.14); display:flex; flex-direction:column; overflow:hidden; }
+  .ptc.dragover { box-shadow:0 0 0 3px #4a90d9; }
+  .ptc.dragging { opacity:.92; box-shadow:0 8px 22px rgba(0,0,0,.28); }
+  .ptc.big { border-width:4px; border-style:double; }
+  .ptc.hit { box-shadow:0 0 0 4px #f5a623, 0 3px 14px rgba(245,166,35,.5); }
+  .ptc-head { display:flex; align-items:center; gap:5px; padding:6px 8px; cursor:grab;
+    font-size:12.5px; font-weight:700; touch-action:none; }
+  .ptc-head:active { cursor:grabbing; }
+  .ptc-head .grip { opacity:.4; }
+  .ptc-head .dot { width:15px; height:15px; border-radius:50%; border:1.5px solid rgba(0,0,0,.3); cursor:pointer; flex-shrink:0; }
+  .ptc-head .ttl { white-space:nowrap; }
+  .ptc-head .nm { outline:none; border-bottom:1px dashed transparent; max-width:92px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; cursor:text; }
+  .ptc-head .nm:hover { border-bottom-color:#999; }
+  .ptc-head .cnt { margin-left:auto; font-size:11px; font-weight:800; padding:1px 7px; border-radius:9px; background:#e7efe9; color:#2d4a33; }
+  .ptc-head .cnt.full { background:#dff3e2; color:#1f5c2d; }
+  .ptc-head .cnt.over { background:#fde2e2; color:#a02020; }
+  .ptc-head .del { border:none; background:none; cursor:pointer; font-size:12px; opacity:.4; padding:0 2px; }
+  .ptc-head .del:hover { opacity:1; color:#a02020; }
+  .ptc-body { display:flex; flex-direction:column; gap:3px; padding:6px; max-height:220px; overflow-y:auto; min-height:32px; }
+  .ptc .chip { font-size:12px; padding:3px 7px; }
+  .ptc .chip .tag { display:none; }
+  .ptc-empty { color:#9ab3a1; font-size:11.5px; text-align:center; padding:9px 4px; }
   /* marcos de referência (não são mesas) */
-  .lm { position:absolute; border:2px dashed #9bb0a1; border-radius:10px; background:rgba(255,255,255,.5);
-    display:flex; align-items:center; justify-content:center; text-align:center; padding:4px;
-    font-size:13px; font-weight:700; color:#5b7a64; }
-  .lm.noivos { background:#fbeede; border:2px solid #d8b06a; color:#8a6a2a; border-radius:8px; }
-  .planta-aisle { position:absolute; inset:0; pointer-events:none; z-index:1; }
-  /* painel de ocupantes ao tocar numa mesa */
-  .planta-detail { margin-top:12px; background:#fff; border:1.5px solid #b8cfc0; border-radius:12px;
-    padding:11px 13px; font-size:13.5px; display:none; }
-  .planta-detail.show { display:block; }
-  .planta-detail h3 { font-size:15px; color:#2d4a33; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
-  .planta-detail .cv { margin:3px 0; line-height:1.4; }
+  .lm { position:absolute; border:2px dashed #9bb0a1; border-radius:14px; background:rgba(255,255,255,.5);
+    display:flex; align-items:center; justify-content:center; text-align:center; padding:8px; line-height:1.35;
+    font-size:15px; font-weight:700; color:#5b7a64; pointer-events:none; }
+  .lm.lounge { background:#f3ecfb; border-color:#c3a6e0; color:#6f4aa0; }
+  .lm.palco  { background:#eaf0f7; border-color:#9bb6d4; color:#3a5f86; }
 
   @media print {
     .tabs-main, .planta-head { display:none !important; }
@@ -273,20 +289,29 @@
 </div><!-- /view-lista -->
 
 <div id="view-planta" class="view" hidden>
-  <div class="planta-head">
-    <input id="planta-search" placeholder="🔎 Digite seu nome para achar sua mesa..." oninput="renderPlanta()">
-    <button onclick="document.getElementById('planta-search').value='';renderPlanta();" class="ghost" style="border:1.5px solid #9bb8a4;background:#fff;color:#3a5a42;border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;font-weight:600">limpar</button>
+  <div class="pl-toolbar">
+    <input id="planta-search" placeholder="🔎 buscar convidado..." oninput="renderPlanta()">
+    <button onclick="addTablePlanta()">➕ Nova mesa</button>
+    <button onclick="plantaZoom(0.15)" title="Aproximar">🔍➕</button>
+    <button onclick="plantaZoom(-0.15)" title="Afastar">🔍➖</button>
+    <button onclick="plantaFitAll()" title="Enquadrar o salão inteiro">⤢ Ver tudo</button>
+    <span id="planta-stats"></span>
   </div>
   <div class="planta-legend">
-    <span>👆 toque numa mesa para ver quem senta nela</span>
-    <span>🔺 <b>mesa maior</b> = mais gente que cadeiras</span>
-    <span>💍 mesa dos noivos · 🎭 palco/pista como referência</span>
+    <span>↕ arraste a mesa pelo <b>título</b> pra reposicionar no salão</span>
+    <span>👤 arraste um convidado pra outra mesa (ou pra "Sem mesa")</span>
+    <span>🚫 cancela só a pessoa · 🔺 <b>mesa maior</b> = mais gente que cadeiras</span>
   </div>
-  <div class="planta-banner" id="planta-banner"></div>
-  <div class="planta-wrap" id="planta-wrap">
-    <div class="planta-canvas" id="planta-canvas"></div>
+  <div class="pl-trays" id="pl-trays">
+    <div class="pool" id="pl-pool" data-table=""><h2>📥 Sem mesa</h2><div class="chips"></div></div>
+    <div class="pool out" id="pl-pool-out" data-table="OUT"><h2 id="pl-out-title">🚫 Não vão</h2><div class="chips"></div></div>
   </div>
-  <div class="planta-detail" id="planta-detail"></div>
+  <div class="pl-banner" id="planta-banner"></div>
+  <div class="pl-wrap" id="planta-wrap">
+    <div class="pl-sizer" id="planta-sizer">
+      <div class="pl-canvas" id="planta-canvas"></div>
+    </div>
+  </div>
 </div>
 
 <div class="modal-bg" id="convite-modal" hidden onclick="if(event.target===this)closeConvite()">
@@ -892,7 +917,7 @@ function render(){
   document.getElementById('out-title').textContent = `🚫 Não vão (${out.length})`;
 
   // busca
-  if (q) document.querySelectorAll('.chip').forEach(el => {
+  if (q) document.querySelectorAll('#view-lista .chip').forEach(el => {
     const g = gById(el.dataset.id);
     const hit = g.n.toLowerCase().includes(q) || g.cv.toLowerCase().includes(q);
     el.classList.toggle('hl', hit); el.classList.toggle('dim', !hit);
@@ -963,8 +988,8 @@ function removeRule(i){ state.rules.splice(i,1); save(); render(); }
 // DRAG & DROP
 // ============================================================
 function wireDnD(){
-  // chips (convidados)
-  document.querySelectorAll('.chip').forEach(el => {
+  // chips (convidados) — SÓ da aba Lista (a planta tem o próprio wirePlanta)
+  document.querySelectorAll('#view-lista .chip').forEach(el => {
     el.addEventListener('dragstart', e => {
       e.dataTransfer.setData('text/plain', 'guest:' + el.dataset.id);
     });
@@ -980,7 +1005,7 @@ function wireDnD(){
     });
   });
   // títulos de mesa (mover mesa)
-  document.querySelectorAll('[data-move-table]').forEach(el => {
+  document.querySelectorAll('#view-lista [data-move-table]').forEach(el => {
     el.addEventListener('dragstart', e => {
       e.stopPropagation();
       e.dataTransfer.setData('text/plain', 'table:' + el.dataset.moveTable);
@@ -989,7 +1014,7 @@ function wireDnD(){
   // dropzones: mesas, pool, não-vão, slots vazios
   // IMPORTANTE: registra cada zona UMA vez só (pool/não-vão sobrevivem ao render;
   // sem essa guarda os listeners acumulavam e o drop disparava N vezes)
-  document.querySelectorAll('[data-table], .slot.empty').forEach(zone => {
+  document.querySelectorAll('#view-lista [data-table], #view-lista .slot.empty').forEach(zone => {
     if (zone.dataset.wired) return;
     zone.dataset.wired = '1';
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
@@ -1029,7 +1054,7 @@ function wireDnD(){
   // botões 🚫 / ↩ — sempre INDIVIDUAIS (cancela/restaura uma pessoa só)
   // SEM confirm(): o Chrome pode suprimir diálogos (aí o clique "não funciona");
   // a ação é reversível pelo ↩, não precisa de confirmação
-  document.querySelectorAll('[data-out]').forEach(btn => {
+  document.querySelectorAll('#view-lista [data-out]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation(); e.preventDefault();
       const g = gById(btn.dataset.out);
@@ -1037,7 +1062,7 @@ function wireDnD(){
       save(); render();
     });
   });
-  document.querySelectorAll('[data-restore]').forEach(btn => {
+  document.querySelectorAll('#view-lista [data-restore]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const g = gById(btn.dataset.restore);
@@ -1049,11 +1074,11 @@ function wireDnD(){
     });
   });
   // remover mesa
-  document.querySelectorAll('[data-del-table]').forEach(btn => {
+  document.querySelectorAll('#view-lista [data-del-table]').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); removeTable(btn.dataset.delTable); });
   });
   // trocar cor da mesa (clique na bolinha cicla a paleta)
-  document.querySelectorAll('[data-color-table]').forEach(dot => {
+  document.querySelectorAll('#view-lista [data-color-table]').forEach(dot => {
     dot.addEventListener('click', e => {
       e.stopPropagation();
       const t = state.tables.find(t=>t.id===dot.dataset.colorTable);
@@ -1062,7 +1087,7 @@ function wireDnD(){
     dot.addEventListener('mousedown', e => e.stopPropagation());
   });
   // nome editável
-  document.querySelectorAll('[data-table-name]').forEach(el => {
+  document.querySelectorAll('#view-lista [data-table-name]').forEach(el => {
     el.addEventListener('blur', () => {
       const t = state.tables.find(t=>t.id===el.dataset.tableName);
       if (t){ t.nome = el.textContent.trim(); save(); }
@@ -1314,148 +1339,237 @@ function removeCustomConvite(cv){
 }
 
 // ============================================================
-// PLANTA DO SALÃO — mapa espacial fiel ao desenho do casamento
-// (orientação: cada pessoa acha o nome e a mesa dela acende)
+// PLANTA DO SALÃO — alocador ESPACIAL (mesmas funções da aba Lista,
+// só que cada mesa é um card posicionável no salão, com drag & drop)
 // ============================================================
-const VW = 1280, R = 54;
-// posições REAIS das mesas no desenho da planta (centro, em px da planta 1280 de largura)
-const DRAWN_SPOTS = [
-  // fila de cima, à esquerda (4 mesas sólidas)
-  {x:258,y:90},{x:388,y:90},{x:518,y:90},{x:632,y:90},
-  // bloco tracejado à direita (2 + 3 + 3 + 3)
-  {x:950,y:122},{x:1078,y:122},
-  {x:820,y:258},{x:950,y:258},{x:1080,y:258},
-  {x:820,y:390},{x:950,y:390},{x:1080,y:390},
-  {x:820,y:520},{x:950,y:520},{x:1080,y:520},
-  // fila de baixo, à esquerda (3 mesas sólidas)
-  {x:305,y:616},{x:425,y:616},{x:545,y:616},
-];
-// a planta desenhada tem 18 mesas — como precisamos de mais, estendo o mesmo padrão
-// em fileiras extras abaixo até caber toda mesa que existir no estado
-const PLAN_SPOTS = DRAWN_SPOTS.slice();
-(function(){
-  const cols = [175,335,500,820,950,1080];
-  let y = 720;
-  while (PLAN_SPOTS.length < 42){ y += 132; for (const x of cols){ if (PLAN_SPOTS.length < 42) PLAN_SPOTS.push({x, y, extra:true}); } }
-})();
-const VH = Math.max(...PLAN_SPOTS.map(s=>s.y)) + R + 46;
+const CW = 215;          // largura do card de mesa
+let plantaScale = 0;     // 0 = ainda vou calcular o zoom que enquadra
 
-// marcos de referência (não são mesas) — ajudam a pessoa a se situar
+// posições padrão das mesas no salão (px), imitando os grupos do desenho:
+// 4 no topo-esquerda · bloco à direita · fila embaixo-esquerda · extras "ao fundo"
+function defPos(i){
+  const DEF = [
+    {x:40,y:40},{x:275,y:40},{x:510,y:40},{x:745,y:40},          // topo-esquerda (4)
+    {x:1620,y:40},{x:1855,y:40},                                  // direita: 2 no topo
+    {x:1500,y:300},{x:1735,y:300},{x:1970,y:300},                 // direita 3
+    {x:1500,y:560},{x:1735,y:560},{x:1970,y:560},                 // direita 3
+    {x:1500,y:820},{x:1735,y:820},{x:1970,y:820},                 // direita 3
+    {x:40,y:1120},{x:275,y:1120},{x:510,y:1120},                  // embaixo-esquerda (3)
+    {x:1500,y:1080},{x:1735,y:1080},{x:1970,y:1080},              // extras ao fundo (direita)
+    {x:40,y:1390},{x:275,y:1390},{x:510,y:1390},                  // extras ao fundo (esquerda)
+    {x:1500,y:1340},{x:1735,y:1340},{x:1970,y:1340},
+  ];
+  if (i < DEF.length) return DEF[i];
+  const k = i - DEF.length;                                       // continua numa grade à direita
+  return { x:2230 + (k%3)*235, y:40 + Math.floor(k/3)*260 };
+}
+
+// marcos de referência (decorativos) — centro é LOUNGE com pufs, não mesa de noivos
 const LANDMARKS = [
-  {x:370, y:296, w:120, h:98,  label:'💍 Noivos',      cls:'noivos'},
-  {x:6,   y:158, w:158, h:404, label:'🎭 Palco / Pista', cls:''},
+  {x:1000,y:60,  w:360,h:250, cls:'lounge', label:'🛋️ Lounge · pufs<br><span style="font-weight:500;font-size:12px">área de convivência — ninguém senta aqui</span>'},
+  {x:1000,y:370, w:360,h:520, cls:'palco',  label:'🎭 Palco / Pista de dança'},
 ];
 
-let plantaSel = null;   // id da mesa cujo detalhe está aberto
+function sortedTables(){ return [...state.tables].sort((a,b)=>a.slot-b.slot); }
 
-function planTables(){ return [...state.tables].sort((a,b)=>a.slot-b.slot); }
+// garante que toda mesa tem posição no salão (px,py). Retorna true se criou alguma.
+function ensurePlantaPos(){
+  let changed = false;
+  sortedTables().forEach((t,i) => {
+    if (typeof t.px !== 'number' || typeof t.py !== 'number'){ const p = defPos(i); t.px = p.x; t.py = p.y; changed = true; }
+  });
+  return changed;
+}
 
-function fitPlanta(){
-  const wrap = document.getElementById('planta-wrap');
-  const canvas = document.getElementById('planta-canvas');
-  if (!wrap || !canvas) return;
-  const s = Math.max(0.5, Math.min(1.15, wrap.clientWidth / VW));
-  canvas.style.transform = 'scale(' + s + ')';
-  wrap.style.height = (VH * s) + 'px';
+function plantaCanvasSize(){
+  let mx = 2200, my = 1500;
+  state.tables.forEach(t => { mx = Math.max(mx,(t.px||0)+CW); my = Math.max(my,(t.py||0)+300); });
+  LANDMARKS.forEach(l => { mx = Math.max(mx,l.x+l.w); my = Math.max(my,l.y+l.h); });
+  return { w:mx+60, h:my+60 };
 }
 
 function renderPlanta(){
   const view = document.getElementById('view-planta');
   const canvas = document.getElementById('planta-canvas');
-  if (!view || view.hidden || !canvas) return;   // só desenha quando a aba está visível
-  canvas.style.width = VW + 'px';
-  canvas.style.height = VH + 'px';
+  const sizer = document.getElementById('planta-sizer');
+  const wrap = document.getElementById('planta-wrap');
+  if (!view || view.hidden || !canvas) return;   // só desenha quando a aba está aberta
+  if (ensurePlantaPos()) save();
+
   const q = (document.getElementById('planta-search').value || '').trim().toLowerCase();
+  const { w:VW2, h:VH2 } = plantaCanvasSize();
+  if (!plantaScale) plantaScale = Math.max(0.4, Math.min(1, (wrap.clientWidth - 8) / VW2));
 
-  // corredor curvo + parede/buffet + marcos
-  let html = '<svg class="planta-aisle" viewBox="0 0 ' + VW + ' ' + VH + '" preserveAspectRatio="none">' +
-    '<path d="M540 6 C 470 210, 470 500, 415 706" fill="none" stroke="#9bb0a1" stroke-width="3" stroke-dasharray="10 9"/></svg>';
-  html += '<div class="lm" style="left:0;top:0;width:' + VW + 'px;height:16px;border-radius:0;border-style:solid;background:rgba(198,216,201,.65);font-size:11px">entrada · buffet</div>';
-  for (const lm of LANDMARKS)
-    html += '<div class="lm ' + lm.cls + '" style="left:' + lm.x + 'px;top:' + lm.y + 'px;width:' + lm.w + 'px;height:' + lm.h + 'px">' + lm.label + '</div>';
+  // quem casa com a busca (só quem está numa mesa)
+  const hitTables = new Set(); const matches = [];
+  if (q) ALLG.forEach(g => { const tid = state.assign[g.id]; if (!tid || tid==='OUT') return;
+    if (g.n.toLowerCase().includes(q) || g.cv.toLowerCase().includes(q)){ hitTables.add(tid); matches.push({g, tid}); } });
 
-  // quem casa com a busca (só quem está sentado numa mesa)
-  const hitTables = new Set();
-  const matches = [];
-  if (q) ALLG.forEach(g => {
-    const tid = state.assign[g.id];
-    if (!tid || tid === 'OUT') return;
-    if (g.n.toLowerCase().includes(q) || g.cv.toLowerCase().includes(q)){ hitTables.add(tid); matches.push({g, tid}); }
-  });
+  // marcos
+  let html = '<div class="lm wall" style="left:0;top:0;width:'+VW2+'px;height:16px;border-radius:0;border-style:solid;background:rgba(198,216,201,.7);font-size:11px;color:#5b7a64">entrada · buffet</div>';
+  LANDMARKS.forEach(l => html += '<div class="lm '+l.cls+'" style="left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px">'+l.label+'</div>');
 
-  planTables().forEach((t, i) => {
-    const spot = PLAN_SPOTS[i] || PLAN_SPOTS[PLAN_SPOTS.length-1];
+  // mesas como cards
+  sortedTables().forEach(t => {
     const guests = ALLG.filter(g => state.assign[g.id] === t.id);
     const seated = guests.filter(g => g.t !== 'b').length;
     const over = seated > CAPACITY;
     const [cc, ce] = PALETTE[t.corIdx % PALETTE.length];
-    const sc = over ? 1.34 : 1;
-    const d = 2 * R * sc;
-    const cls = 'pt' + (over ? ' big' : '') + (hitTables.has(t.id) ? ' hit' : '') + (plantaSel === t.id ? ' sel' : '');
-    const names = guests.map(g => g.n).join(', ');
-    html += '<div class="' + cls + '" data-pt="' + t.id + '" title="' + t.nome + ' — ' + names + '"' +
-      ' style="left:' + (spot.x - d/2) + 'px;top:' + (spot.y - d/2) + 'px;width:' + d + 'px;height:' + d + 'px;border-color:' + ce + ';background:' + cc + '">' +
-      (over ? '<span class="maior">🔺</span>' : '') +
-      '<span class="lbl" style="font-size:' + (19*sc) + 'px">' + tableLabel(t) + '</span>' +
-      '<span class="cnt">' + seated + (over ? ' 👥' : '/' + CAPACITY) + '</span>' +
-      '<span class="nm">' + t.nome + '</span></div>';
+    const cntCls = over ? 'over' : seated === CAPACITY ? 'full' : '';
+    const cls = 'ptc' + (over ? ' big' : '') + (hitTables.has(t.id) ? ' hit' : '');
+    html += '<div class="'+cls+'" data-table="'+t.id+'" style="left:'+t.px+'px;top:'+t.py+'px;border-color:'+ce+'">'
+      + '<div class="ptc-head" data-move="'+t.id+'" style="background:'+cc+'">'
+        + '<span class="grip">⠿</span>'
+        + '<span class="dot" data-color-table="'+t.id+'" title="Trocar a cor da mesa"></span>'
+        + '<span class="ttl">'+tableLabel(t)+' ·</span>'
+        + '<span class="nm" contenteditable="true" data-table-name="'+t.id+'">'+t.nome+'</span>'
+        + '<span class="cnt '+cntCls+'">'+(over ? '🔺'+seated : seated+'/'+CAPACITY)+'</span>'
+        + '<button class="del" data-del-table="'+t.id+'" title="Remover mesa">✕</button>'
+      + '</div>'
+      + '<div class="ptc-body">' + (guests.length ? guests.map(chipHTML).join('') : '<div class="ptc-empty">arraste convidados pra cá</div>') + '</div>'
+    + '</div>';
   });
   canvas.innerHTML = html;
+  canvas.style.width = VW2+'px'; canvas.style.height = VH2+'px';
+  canvas.style.transform = 'scale('+plantaScale+')';
+  sizer.style.width = (VW2*plantaScale)+'px'; sizer.style.height = (VH2*plantaScale)+'px';
 
-  canvas.querySelectorAll('[data-pt]').forEach(el =>
-    el.addEventListener('click', () => { plantaSel = plantaSel === el.dataset.pt ? null : el.dataset.pt; renderPlanta(); }));
+  // bandejas Sem mesa / Não vão
+  const un = ALLG.filter(g => !state.assign[g.id]);
+  document.querySelector('#pl-pool .chips').innerHTML = un.map(chipHTML).join('');
+  const out = ALLG.filter(g => state.assign[g.id] === 'OUT');
+  document.querySelector('#pl-pool-out .chips').innerHTML = out.map(chipHTML).join('');
+  document.getElementById('pl-out-title').textContent = '🚫 Não vão ('+out.length+')';
 
-  // faixa de resultado da busca
+  // realce da busca nos chips
+  if (q) document.querySelectorAll('#view-planta .chip').forEach(el => {
+    const g = gById(el.dataset.id); const hit = g && (g.n.toLowerCase().includes(q) || g.cv.toLowerCase().includes(q));
+    el.classList.toggle('hl', hit); el.classList.toggle('dim', !hit);
+  });
+
+  // stats
+  const seatedTotal = ALLG.filter(g => g.t!=='b' && state.assign[g.id] && state.assign[g.id]!=='OUT').length;
+  document.getElementById('planta-stats').textContent =
+    (ALLG.length - out.length)+' pessoas · '+seatedTotal+' sentados · '+state.tables.length+' mesas · '+un.length+' sem mesa · '+out.length+' não vão';
+
+  // faixa da busca + rola até a 1ª mesa achada
   const banner = document.getElementById('planta-banner');
   if (q && matches.length){
-    const byT = {};
-    matches.forEach(m => (byT[m.tid] = byT[m.tid] || []).push(m.g.n));
-    banner.className = 'planta-banner show';
-    banner.innerHTML = Object.entries(byT).map(([tid, names]) => {
-      const t = state.tables.find(x => x.id === tid);
-      const seated = ALLG.filter(g => state.assign[g.id] === tid && g.t !== 'b').length;
-      const big = seated > CAPACITY ? ' 🔺 (mesa maior)' : '';
-      plantaSel = tid;   // já abre o detalhe da mesa achada
-      return '📍 <b>' + names.join(', ') + '</b> → ' + tableLabel(t) + ' · ' + t.nome + big;
+    const byT = {}; matches.forEach(m => (byT[m.tid] = byT[m.tid] || []).push(m.g.n));
+    banner.className = 'pl-banner show';
+    banner.innerHTML = Object.entries(byT).map(([tid,names]) => {
+      const t = state.tables.find(x => x.id === tid); return '📍 <b>'+names.join(', ')+'</b> → '+tableLabel(t)+' · '+t.nome;
     }).join('<br>');
-  } else if (q){
-    banner.className = 'planta-banner show none';
-    banner.textContent = 'Nenhum convidado com esse nome numa mesa. (Confira grafia ou a aba Lista.)';
-  } else {
-    banner.className = 'planta-banner';
-  }
+    const card = canvas.querySelector('[data-table="'+matches[0].tid+'"]');
+    if (card) card.scrollIntoView({ block:'center', inline:'center', behavior:'smooth' });
+  } else if (q){ banner.className = 'pl-banner show none'; banner.textContent = 'Nenhum convidado com esse nome numa mesa.'; }
+  else banner.className = 'pl-banner';
 
-  showPlantaDetail();
-  fitPlanta();
+  wirePlanta();
 }
 
-function showPlantaDetail(){
-  const el = document.getElementById('planta-detail');
-  if (!el) return;
-  const t = plantaSel && state.tables.find(x => x.id === plantaSel);
-  if (!t){ el.className = 'planta-detail'; plantaSel = null; return; }
-  const guests = ALLG.filter(g => state.assign[g.id] === t.id);
-  const seated = guests.filter(g => g.t !== 'b').length;
-  const over = seated > CAPACITY;
-  const byCv = {};
-  guests.forEach(g => (byCv[g.cv] = byCv[g.cv] || []).push(g));
-  el.className = 'planta-detail show';
-  el.innerHTML = '<h3>' + tableLabel(t) + ' · ' + t.nome +
-      (over ? ' <span style="color:#a02020">— 🔺 mesa maior (' + seated + ' pessoas p/ ' + CAPACITY + ' cadeiras)</span>'
-            : ' <span style="color:#5b7a64;font-weight:600">(' + seated + '/' + CAPACITY + ')</span>') + '</h3>' +
-    (guests.length
-      ? Object.entries(byCv).map(([cv, gs]) => '<div class="cv">• <b>' + cv + '</b>: ' +
-          gs.map(g => g.n + (g.t==='c' ? ' 🧒' : g.t==='b' ? ' 👶' : '')).join(', ') + '</div>').join('')
-      : '<div style="color:#777">Mesa vazia.</div>');
+// ---- drag & drop e edição na planta ----
+function wirePlanta(){
+  const canvas = document.getElementById('planta-canvas');
+  const trays = document.getElementById('pl-trays');
+
+  // chips: arrastar; soltar fora de tudo → "Sem mesa"
+  [canvas, trays].forEach(sc => sc.querySelectorAll('.chip').forEach(el => {
+    el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', 'guest:' + el.dataset.id); });
+    el.addEventListener('dragend', e => {
+      if (e.dataTransfer.dropEffect !== 'none') return;
+      const g = gById(el.dataset.id);
+      if (!state.assign[g.id] || state.assign[g.id] === 'OUT') return;
+      ALLG.filter(x => x.cv===g.cv && state.assign[x.id] && state.assign[x.id]!=='OUT').forEach(m => state.assign[m.id] = null);
+      save(); render();
+    });
+  }));
+
+  // zonas de solta: cards + bandejas
+  const zones = [...canvas.querySelectorAll('.ptc'), ...trays.querySelectorAll('[data-table]')];
+  zones.forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
+      const data = e.dataTransfer.getData('text/plain'); if (!data.startsWith('guest:')) return;
+      const g = gById(data.slice(6)); const target = zone.dataset.table || null;
+      if (target === 'OUT') state.assign[g.id] = 'OUT';
+      else if (state.assign[g.id] === 'OUT'){
+        const mate = ALLG.find(x => x.cv===g.cv && x.id!==g.id && state.assign[x.id] && state.assign[x.id]!=='OUT');
+        state.assign[g.id] = mate ? state.assign[mate.id] : target;
+      } else ALLG.filter(x => x.cv===g.cv && state.assign[x.id]!=='OUT').forEach(m => state.assign[m.id] = target);
+      save(); render();
+    });
+  });
+  // soltar no fundo do canvas (fora de qualquer mesa) → Sem mesa
+  canvas.addEventListener('dragover', e => { if (e.target === canvas) e.preventDefault(); });
+  canvas.addEventListener('drop', e => {
+    if (e.target !== canvas) return; e.preventDefault();
+    const data = e.dataTransfer.getData('text/plain'); if (!data.startsWith('guest:')) return;
+    const g = gById(data.slice(6));
+    if (!state.assign[g.id] || state.assign[g.id] === 'OUT') return;
+    ALLG.filter(x => x.cv===g.cv && state.assign[x.id] && state.assign[x.id]!=='OUT').forEach(m => state.assign[m.id] = null);
+    save(); render();
+  });
+
+  // 🚫 / ↩ nos chips
+  document.querySelectorAll('#view-planta [data-out]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation(); e.preventDefault(); state.assign[gById(btn.dataset.out).id] = 'OUT'; save(); render();
+  }));
+  document.querySelectorAll('#view-planta [data-restore]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation(); const g = gById(btn.dataset.restore);
+    const mate = ALLG.find(x => x.cv===g.cv && x.id!==g.id && state.assign[x.id] && state.assign[x.id]!=='OUT');
+    state.assign[g.id] = mate ? state.assign[mate.id] : null; save(); render();
+  }));
+  // remover / recolorir / renomear mesa
+  canvas.querySelectorAll('[data-del-table]').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); removeTable(btn.dataset.delTable); }));
+  canvas.querySelectorAll('[data-color-table]').forEach(dot => {
+    dot.addEventListener('pointerdown', e => e.stopPropagation());
+    dot.addEventListener('click', e => { e.stopPropagation(); const t = state.tables.find(t=>t.id===dot.dataset.colorTable); if (t){ t.corIdx=(t.corIdx+1)%PALETTE.length; save(); render(); } });
+  });
+  canvas.querySelectorAll('[data-table-name]').forEach(el => {
+    el.addEventListener('pointerdown', e => e.stopPropagation());
+    el.addEventListener('blur', () => { const t = state.tables.find(t=>t.id===el.dataset.tableName); if (t){ t.nome = el.textContent.trim(); save(); } });
+    el.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); el.blur(); } });
+  });
+  // arrastar a mesa pelo título (posição livre no salão)
+  canvas.querySelectorAll('.ptc-head').forEach(h => wireTableDrag(h));
 }
+
+function wireTableDrag(h){
+  const card = h.closest('.ptc'); const tid = card.dataset.table;
+  h.addEventListener('pointerdown', e => {
+    if (e.target.closest('.dot,.del,.nm')) return;   // controles do cabeçalho não arrastam
+    e.preventDefault();
+    const t = state.tables.find(x => x.id === tid); if (!t) return;
+    const sx = e.clientX, sy = e.clientY, ox = t.px, oy = t.py;
+    card.classList.add('dragging'); card.style.zIndex = 50;
+    const mv = ev => { const dx = (ev.clientX-sx)/plantaScale, dy = (ev.clientY-sy)/plantaScale;
+      t.px = Math.max(0, ox+dx); t.py = Math.max(0, oy+dy); card.style.left = t.px+'px'; card.style.top = t.py+'px'; };
+    const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up);
+      card.classList.remove('dragging'); save(); renderPlanta(); };
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+  });
+}
+
+function addTablePlanta(){
+  const before = new Set(state.tables.map(t => t.id));
+  addTable();                                   // cria (com slot) + save + render
+  const t = state.tables.find(x => !before.has(x.id));
+  if (t){ const wrap = document.getElementById('planta-wrap');
+    t.px = (wrap.scrollLeft + 40)/plantaScale; t.py = (wrap.scrollTop + 40)/plantaScale;
+    save(); renderPlanta(); }
+}
+function plantaZoom(d){ plantaScale = Math.max(0.3, Math.min(1.6, (plantaScale||0.6) + d)); renderPlanta(); }
+function plantaFitAll(){ plantaScale = 0; renderPlanta(); }
 
 function showView(name){
   document.querySelectorAll('.tabs-main button').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   document.getElementById('view-lista').hidden  = name !== 'lista';
   document.getElementById('view-planta').hidden = name !== 'planta';
-  if (name === 'planta'){ plantaSel = null; renderPlanta(); }
+  if (name === 'planta') renderPlanta();
 }
-window.addEventListener('resize', () => { const v = document.getElementById('view-planta'); if (v && !v.hidden) fitPlanta(); });
 
 // ============================================================
 // SINCRONIZAÇÃO SUPABASE (ao vivo) — mesmo padrão do board-prioridades
