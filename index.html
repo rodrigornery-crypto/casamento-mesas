@@ -215,10 +215,14 @@
   .ptc-empty { color:#9ab3a1; font-size:11.5px; text-align:center; padding:9px 4px; }
   /* marcos de referência (não são mesas) */
   .lm { position:absolute; border:2px dashed #9bb0a1; border-radius:14px; background:rgba(255,255,255,.5);
-    display:flex; align-items:center; justify-content:center; text-align:center; padding:8px; line-height:1.35;
+    display:flex; align-items:center; justify-content:center; text-align:center; padding:6px; overflow:hidden;
     font-size:15px; font-weight:700; color:#5b7a64; pointer-events:none; }
-  .lm.lounge { background:#f3ecfb; border-color:#c3a6e0; color:#6f4aa0; }
-  .lm.palco  { background:#eaf0f7; border-color:#9bb6d4; color:#3a5f86; }
+  .lm-cap { font-size:15px; font-weight:700; color:#5b7a64; line-height:1.3; }
+  .lm.lounge { background:#f6f0fc; border:2px solid #d7c4ee; border-radius:22px; align-items:flex-start; }
+  .lm.lounge .lm-cap { position:relative; z-index:2; margin-top:2px; color:#6f4aa0;
+    background:rgba(246,240,252,.85); padding:1px 9px; border-radius:9px; }
+  .lm.palco  { background:#eef3f9; border:2px dashed #9bb6d4; }
+  .lm.palco .lm-cap { color:#3a5f86; }
 
   @media print {
     .tabs-main, .planta-head { display:none !important; }
@@ -292,6 +296,7 @@
   <div class="pl-toolbar">
     <input id="planta-search" placeholder="🔎 buscar convidado..." oninput="renderPlanta()">
     <button onclick="addTablePlanta()">➕ Nova mesa</button>
+    <button onclick="organizarPlanta()" title="Reorganiza as mesas numa grade limpa">▦ Organizar</button>
     <button onclick="plantaZoom(0.15)" title="Aproximar">🔍➕</button>
     <button onclick="plantaZoom(-0.15)" title="Afastar">🔍➖</button>
     <button onclick="plantaFitAll()" title="Enquadrar o salão inteiro">⤢ Ver tudo</button>
@@ -1345,40 +1350,52 @@ function removeCustomConvite(cv){
 const CW = 215;          // largura do card de mesa
 let plantaScale = 0;     // 0 = ainda vou calcular o zoom que enquadra
 
-// posições padrão das mesas no salão (px), imitando os grupos do desenho:
-// 4 no topo-esquerda · bloco à direita · fila embaixo-esquerda · extras "ao fundo"
+// posições padrão: bloco à ESQUERDA (4 colunas) + bloco à DIREITA (3 colunas),
+// deixando o CENTRO livre pro lounge e a pista. É só o ponto de partida — você
+// arrasta cada mesa pelo título pra deixar na disposição real do salão.
 function defPos(i){
-  const DEF = [
-    {x:40,y:40},{x:275,y:40},{x:510,y:40},{x:745,y:40},          // topo-esquerda (4)
-    {x:1620,y:40},{x:1855,y:40},                                  // direita: 2 no topo
-    {x:1500,y:300},{x:1735,y:300},{x:1970,y:300},                 // direita 3
-    {x:1500,y:560},{x:1735,y:560},{x:1970,y:560},                 // direita 3
-    {x:1500,y:820},{x:1735,y:820},{x:1970,y:820},                 // direita 3
-    {x:40,y:1120},{x:275,y:1120},{x:510,y:1120},                  // embaixo-esquerda (3)
-    {x:1500,y:1080},{x:1735,y:1080},{x:1970,y:1080},              // extras ao fundo (direita)
-    {x:40,y:1390},{x:275,y:1390},{x:510,y:1390},                  // extras ao fundo (esquerda)
-    {x:1500,y:1340},{x:1735,y:1340},{x:1970,y:1340},
-  ];
-  if (i < DEF.length) return DEF[i];
-  const k = i - DEF.length;                                       // continua numa grade à direita
-  return { x:2230 + (k%3)*235, y:40 + Math.floor(k/3)*260 };
+  if (i < 12){ const c = i % 4, r = (i / 4 | 0); return { x:40   + c*235, y:40 + r*260 }; }
+  const j = i - 12;   const c = j % 3, r = (j / 3 | 0); return { x:1500 + c*235, y:40 + r*260 };
 }
 
-// marcos de referência (decorativos) — centro é LOUNGE com pufs, não mesa de noivos
+// marcos de referência (decorativos) — centro é LOUNGE com poltronas/pufs, não mesa de noivos
 const LANDMARKS = [
-  {x:1000,y:60,  w:360,h:250, cls:'lounge', label:'🛋️ Lounge · pufs<br><span style="font-weight:500;font-size:12px">área de convivência — ninguém senta aqui</span>'},
-  {x:1000,y:370, w:360,h:520, cls:'palco',  label:'🎭 Palco / Pista de dança'},
+  {x:1000,y:60,  w:380,h:300, cls:'lounge', label:'🛋️ Lounge · pufs'},
+  {x:1000,y:410, w:380,h:480, cls:'palco',  label:'🎭 Palco / Pista de dança'},
 ];
+
+// desenho do lounge: um tapete com poltronas/pufs vistos de cima (imita a planta original)
+function loungeSVG(w,h){
+  const BODY='#c7aee4', SEAT='#efe6fb', RUG='#e6d6f5', DOT='#b78fd6';
+  const poltrona = (x,y,sw,sh) =>
+    '<rect x="'+x+'" y="'+y+'" width="'+sw+'" height="'+sh+'" rx="'+Math.min(14,sh/2)+'" fill="'+BODY+'"/>'
+   +'<rect x="'+(x+6)+'" y="'+(y+6)+'" width="'+(sw-12)+'" height="'+(sh-12)+'" rx="'+Math.min(9,(sh-12)/2)+'" fill="'+SEAT+'"/>';
+  const cx=w/2, cy=h*0.56;
+  let s='<svg width="100%" height="100%" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="position:absolute;inset:0;pointer-events:none">';
+  s+='<rect x="'+(w*0.10)+'" y="'+(h*0.34)+'" width="'+(w*0.80)+'" height="'+(h*0.56)+'" rx="22" fill="'+RUG+'" opacity="0.6"/>';   // tapete
+  s+=poltrona(cx-95, h*0.36, 190, 42);          // sofá de cima
+  s+=poltrona(cx-95, h*0.78, 190, 42);          // sofá de baixo
+  s+=poltrona(w*0.11, cy-26, 50, 52);           // poltrona esquerda
+  s+=poltrona(w*0.89-50, cy-26, 50, 52);        // poltrona direita
+  s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(Math.min(w,h)*0.085)+'" fill="'+DOT+'"/>';       // mesa de centro
+  s+='</svg>';
+  return s;
+}
 
 function sortedTables(){ return [...state.tables].sort((a,b)=>a.slot-b.slot); }
 
 // garante que toda mesa tem posição no salão (px,py). Retorna true se criou alguma.
 function ensurePlantaPos(){
   let changed = false;
-  sortedTables().forEach((t,i) => {
+  state.tables.forEach((t,i) => {
     if (typeof t.px !== 'number' || typeof t.py !== 'number'){ const p = defPos(i); t.px = p.x; t.py = p.y; changed = true; }
   });
   return changed;
+}
+// reorganiza TODAS as mesas na grade padrão (bloco esq + bloco dir), mantendo o resto
+function organizarPlanta(){
+  state.tables.forEach((t,i) => { const p = defPos(i); t.px = p.x; t.py = p.y; });
+  plantaScale = 0; save(); render();
 }
 
 function plantaCanvasSize(){
@@ -1407,7 +1424,12 @@ function renderPlanta(){
 
   // marcos
   let html = '<div class="lm wall" style="left:0;top:0;width:'+VW2+'px;height:16px;border-radius:0;border-style:solid;background:rgba(198,216,201,.7);font-size:11px;color:#5b7a64">entrada · buffet</div>';
-  LANDMARKS.forEach(l => html += '<div class="lm '+l.cls+'" style="left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px">'+l.label+'</div>');
+  LANDMARKS.forEach(l => {
+    const inner = l.cls === 'lounge'
+      ? loungeSVG(l.w, l.h) + '<span class="lm-cap">' + l.label + '</span>'
+      : '<span class="lm-cap">' + l.label + '</span>';
+    html += '<div class="lm '+l.cls+'" style="left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px">'+inner+'</div>';
+  });
 
   // mesas como cards
   sortedTables().forEach(t => {
