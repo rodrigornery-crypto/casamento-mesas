@@ -190,7 +190,7 @@
   .pl-canvas { position:absolute; top:0; left:0; transform-origin:0 0; }
   /* mesa espacial = card com os nomes */
   .ptc { position:absolute; width:215px; background:#fff; border:2px solid #999; border-radius:16px;
-    box-shadow:0 2px 8px rgba(0,0,0,.14); display:flex; flex-direction:column; overflow:hidden; }
+    box-shadow:0 2px 8px rgba(0,0,0,.14); display:flex; flex-direction:column; overflow:hidden; z-index:2; }
   .ptc.dragover { box-shadow:0 0 0 3px #4a90d9; }
   .ptc.dragging { opacity:.92; box-shadow:0 8px 22px rgba(0,0,0,.28); }
   .ptc.big { border-width:4px; border-style:double; }
@@ -223,6 +223,10 @@
     background:rgba(246,240,252,.85); padding:1px 9px; border-radius:9px; }
   .lm.palco  { background:#eef3f9; border:2px dashed #9bb6d4; }
   .lm.palco .lm-cap { color:#3a5f86; }
+  .lm.estrutura { background:rgba(255,255,255,.35); border:2px solid #b9c9bd; border-radius:6px; align-items:flex-start; }
+  .lm.estrutura .lm-cap { position:relative; z-index:2; margin-top:4px; font-size:12px;
+    background:rgba(255,255,255,.8); padding:1px 8px; border-radius:8px; color:#5b7a64; }
+  .pl-path { position:absolute; left:0; top:0; pointer-events:none; z-index:0; }
 
   @media print {
     .tabs-main, .planta-head { display:none !important; }
@@ -1350,19 +1354,41 @@ function removeCustomConvite(cv){
 const CW = 215;          // largura do card de mesa
 let plantaScale = 0;     // 0 = ainda vou calcular o zoom que enquadra
 
-// posições padrão: bloco à ESQUERDA (4 colunas) + bloco à DIREITA (3 colunas),
-// deixando o CENTRO livre pro lounge e a pista. É só o ponto de partida — você
-// arrasta cada mesa pelo título pra deixar na disposição real do salão.
+// posições padrão: ESPELHAM a planta do salão que a Luisa/Rodrigo mandaram —
+//   • 4 mesas na fileira de cima, à esquerda
+//   • 3 mesas na fileira de baixo, à esquerda
+//   • par de mesas no topo, à direita
+//   • bloco de 3 colunas à direita (o grosso das mesas)
+// o CENTRO fica pro lounge de poltronas e o caminho tracejado. É o ponto de
+// partida — você arrasta cada mesa pelo título pra deixar exatamente no lugar.
 function defPos(i){
-  if (i < 12){ const c = i % 4, r = (i / 4 | 0); return { x:40   + c*235, y:40 + r*260 }; }
-  const j = i - 12;   const c = j % 3, r = (j / 3 | 0); return { x:1500 + c*235, y:40 + r*260 };
+  if (i < 4)  return { x:130  + i*250,      y:70   };   // fileira de cima (esquerda)
+  if (i < 7)  return { x:260  + (i-4)*250,   y:1120 };   // fileira de baixo (esquerda)
+  if (i < 9)  return { x:1560 + (i-7)*250,   y:110  };   // par do topo (direita)
+  const j = i-9, c = j % 3, r = (j / 3 | 0);
+  return { x:1435 + c*250, y:420 + r*250 };              // bloco à direita (3 colunas)
 }
+const PLANTA_LAYOUT_V = 2;   // bump pra re-arrumar as mesas já salvas na nova planta (1x)
 
-// marcos de referência (decorativos) — centro é LOUNGE com poltronas/pufs, não mesa de noivos
+// marcos de referência (decorativos, não são mesas):
+//   • estrutura à esquerda (tenda/canteiros da planta)
+//   • lounge central com POLTRONAS (não é mesa de noivos)
 const LANDMARKS = [
-  {x:1000,y:60,  w:380,h:300, cls:'lounge', label:'🛋️ Lounge · pufs'},
-  {x:1000,y:410, w:380,h:480, cls:'palco',  label:'🎭 Palco / Pista de dança'},
+  {x:0,   y:340, w:250, h:640, cls:'estrutura', label:'🏕️ estrutura'},
+  {x:600, y:540, w:360, h:300, cls:'lounge',    label:'🛋️ Lounge · poltronas'},
 ];
+
+// desenho da estrutura à esquerda: retângulo com X tracejado + 2 canteiros (imita a planta)
+function estruturaSVG(w,h){
+  const L='#a7bcac';
+  let s='<svg width="100%" height="100%" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="position:absolute;inset:0;pointer-events:none">';
+  s+='<line x1="0" y1="0" x2="'+w+'" y2="'+h+'" stroke="'+L+'" stroke-width="1.5" stroke-dasharray="7 7"/>';
+  s+='<line x1="'+w+'" y1="0" x2="0" y2="'+h+'" stroke="'+L+'" stroke-width="1.5" stroke-dasharray="7 7"/>';
+  s+='<ellipse cx="'+(w*0.42)+'" cy="'+(h*0.26)+'" rx="'+(w*0.30)+'" ry="'+(h*0.10)+'" fill="none" stroke="#8ba593" stroke-width="1.6"/>';
+  s+='<ellipse cx="'+(w*0.42)+'" cy="'+(h*0.72)+'" rx="'+(w*0.30)+'" ry="'+(h*0.10)+'" fill="none" stroke="#8ba593" stroke-width="1.6"/>';
+  s+='</svg>';
+  return s;
+}
 
 // desenho do lounge: um tapete com poltronas/pufs vistos de cima (imita a planta original)
 function loungeSVG(w,h){
@@ -1384,17 +1410,27 @@ function loungeSVG(w,h){
 
 function sortedTables(){ return [...state.tables].sort((a,b)=>a.slot-b.slot); }
 
-// garante que toda mesa tem posição no salão (px,py). Retorna true se criou alguma.
+// aplica o layout-planta (defPos) a TODAS as mesas, na ordem visual (por slot)
+function applyPlantaLayout(){
+  sortedTables().forEach((t,i) => { const p = defPos(i); t.px = p.x; t.py = p.y; });
+}
+// garante que toda mesa tem posição no salão (px,py). Retorna true se mudou algo.
 function ensurePlantaPos(){
   let changed = false;
+  // migração 1x: mesas já salvas com o layout antigo snapam pra nova planta
+  if (state.plantaLayoutV !== PLANTA_LAYOUT_V){
+    applyPlantaLayout();
+    state.plantaLayoutV = PLANTA_LAYOUT_V;
+    return true;
+  }
   state.tables.forEach((t,i) => {
     if (typeof t.px !== 'number' || typeof t.py !== 'number'){ const p = defPos(i); t.px = p.x; t.py = p.y; changed = true; }
   });
   return changed;
 }
-// reorganiza TODAS as mesas na grade padrão (bloco esq + bloco dir), mantendo o resto
+// reorganiza TODAS as mesas na disposição da planta, mantendo o resto
 function organizarPlanta(){
-  state.tables.forEach((t,i) => { const p = defPos(i); t.px = p.x; t.py = p.y; });
+  applyPlantaLayout();
   plantaScale = 0; save(); render();
 }
 
@@ -1422,13 +1458,17 @@ function renderPlanta(){
   if (q) ALLG.forEach(g => { const tid = state.assign[g.id]; if (!tid || tid==='OUT') return;
     if (g.n.toLowerCase().includes(q) || g.cv.toLowerCase().includes(q)){ hitTables.add(tid); matches.push({g, tid}); } });
 
+  // caminho tracejado (curva que corta o salão, como na planta)
+  let html = '<svg class="pl-path" width="'+VW2+'" height="'+VH2+'">'
+    + '<path d="M '+(VW2*0.46)+' 16 C '+(VW2*0.54)+' '+(VH2*0.30)+', '+(VW2*0.34)+' '+(VH2*0.62)+', '+(VW2*0.40)+' '+VH2+'" '
+    + 'fill="none" stroke="#b9c9bd" stroke-width="2.5" stroke-dasharray="11 9"/></svg>';
   // marcos
-  let html = '<div class="lm wall" style="left:0;top:0;width:'+VW2+'px;height:16px;border-radius:0;border-style:solid;background:rgba(198,216,201,.7);font-size:11px;color:#5b7a64">entrada · buffet</div>';
+  html += '<div class="lm wall" style="left:0;top:0;width:'+VW2+'px;height:16px;border-radius:0;border-style:solid;background:rgba(198,216,201,.7);font-size:11px;color:#5b7a64;z-index:1">entrada · buffet</div>';
   LANDMARKS.forEach(l => {
-    const inner = l.cls === 'lounge'
-      ? loungeSVG(l.w, l.h) + '<span class="lm-cap">' + l.label + '</span>'
-      : '<span class="lm-cap">' + l.label + '</span>';
-    html += '<div class="lm '+l.cls+'" style="left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px">'+inner+'</div>';
+    let inner = '<span class="lm-cap">' + l.label + '</span>';
+    if (l.cls === 'lounge')    inner = loungeSVG(l.w, l.h) + inner;
+    if (l.cls === 'estrutura') inner = estruturaSVG(l.w, l.h) + inner;
+    html += '<div class="lm '+l.cls+'" style="left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px;z-index:1">'+inner+'</div>';
   });
 
   // mesas como cards
