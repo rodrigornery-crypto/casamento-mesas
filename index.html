@@ -1370,11 +1370,12 @@ let plantaScale = 0;     // 0 = ainda vou calcular o zoom que enquadra
 const SPX = 150;              // px por metro na planta
 const POX = 80, POY = 150;    // origem do salão dentro do canvas
 const VAGAS = [               // centro de cada vaga, em metros [x,y]
-  [3.1,6.6],[3.0,11.4],[4.8,4.9],[4.7,13.1],[6.5,6.6],
-  [6.4,11.4],[8.2,4.9],[8.1,13.1],[9.9,6.6],[9.8,11.4],
-  [29.1,6.6],[29.0,11.4],[30.8,4.9],[30.7,13.1],[32.5,6.6],
-  [32.4,11.4],[34.2,4.9],[34.1,13.1],[35.9,6.6],[35.8,11.4],
-  [16.9,1.75],[22.5,1.75],
+  // como no croqui original: árvore e bloco 11-20 à ESQUERDA, bloco 1-10 à direita
+  [36.9,6.6],[37.0,11.4],[35.2,4.9],[35.3,13.1],[33.5,6.6],
+  [33.6,11.4],[31.8,4.9],[31.9,13.1],[30.1,6.6],[30.2,11.4],
+  [10.9,6.6],[11.0,11.4],[9.2,4.9],[9.3,13.1],[7.5,6.6],
+  [7.6,11.4],[5.8,4.9],[5.9,13.1],[4.1,6.6],[4.2,11.4],
+  [23.1,1.75],[17.5,1.75],
 ];
 function defPos(i){
   if (i < VAGAS.length){
@@ -1383,7 +1384,7 @@ function defPos(i){
   }
   return { x: 200 + (i-VAGAS.length)*250, y: POY + 18*SPX + 140 };  // extras: abaixo do salão
 }
-const PLANTA_LAYOUT_V = 3;   // bump pra re-arrumar as mesas já salvas na nova planta (1x)
+const PLANTA_LAYOUT_V = 4;   // bump pra re-arrumar as mesas já salvas na nova planta (1x)
 
 // marcos de referência (decorativos, não são mesas):
 //   • estrutura à esquerda (tenda/canteiros da planta)
@@ -1437,7 +1438,7 @@ function salaoSVG(w,h){
   E.push(`<rect x="0" y="0" width="40" height="18" fill="#e9eeda" stroke="${I}" stroke-width="0.07"/>`);
   E.push(`<line x1="1" y1="-0.55" x2="39" y2="-0.55" stroke="${L}" stroke-width="0.045" stroke-dasharray="0.5 0.3"/>`);
   E.push(`<text x="20" y="-0.85" text-anchor="middle" font-family="${MP.SANS}" font-size="0.5" letter-spacing="0.14" fill="${L}">PISTA · BUFFET · RECEPÇÃO</text>`);
-  [1.5, 27.5].forEach(bx => {
+  [2.5, 28.5].forEach(bx => {
     E.push(`<rect x="${bx}" y="4" width="10" height="10" fill="${MP.FLOOR}" stroke="${I}" stroke-width="0.045"/>`);
     const x0=bx+0.4, d=`M ${x0} 9 C ${x0+1.2} 7.6, ${x0+2.4} 10.4, ${x0+3.6} 9 C ${x0+4.8} 7.6, ${x0+6} 10.4, ${x0+7.2} 9 C ${x0+7.9} 8.2, ${x0+8.6} 9.7, ${x0+9.3} 9`;
     E.push(`<path d="${d}" fill="none" stroke="${I}" stroke-width="0.72" stroke-linecap="round"/>`);
@@ -1446,19 +1447,19 @@ function salaoSVG(w,h){
       E.push(`<circle cx="${bx+dx}" cy="${py}" r="0.38" fill="#fff" stroke="${I}" stroke-width="0.04"/>`);});
   });
   // centro do bolo
-  E.push(`<rect x="14.5" y="4" width="10" height="10" fill="${MP.FLOOR}" stroke="${I}" stroke-width="0.045"/>`);
+  E.push(`<rect x="15.5" y="4" width="10" height="10" fill="${MP.FLOOR}" stroke="${I}" stroke-width="0.045"/>`);
   for (const a of [45,135,225,315]){ const r=3.5, a1=(a-27)*Math.PI/180, a2=(a+27)*Math.PI/180;
-    const arc=`M ${(19.5+r*Math.cos(a1)).toFixed(2)} ${(9+r*Math.sin(a1)).toFixed(2)} A ${r} ${r} 0 0 1 ${(19.5+r*Math.cos(a2)).toFixed(2)} ${(9+r*Math.sin(a2)).toFixed(2)}`;
+    const arc=`M ${(20.5+r*Math.cos(a1)).toFixed(2)} ${(9+r*Math.sin(a1)).toFixed(2)} A ${r} ${r} 0 0 1 ${(20.5+r*Math.cos(a2)).toFixed(2)} ${(9+r*Math.sin(a2)).toFixed(2)}`;
     E.push(`<path d="${arc}" fill="none" stroke="${I}" stroke-width="0.72" stroke-linecap="round"/>`);
     E.push(`<path d="${arc}" fill="none" stroke="#fff" stroke-width="0.46" stroke-linecap="round"/>`); }
-  E.push(`<circle cx="19.5" cy="9" r="1.3" fill="#fff" stroke="${I}" stroke-width="0.06"/>`);
-  E.push(`<text x="19.5" y="9.16" text-anchor="middle" font-family="${MP.SANS}" font-size="0.42" letter-spacing="0.14" fill="${I}">BOLO</text>`);
-  E.push(`<text x="19.5" y="11.6" text-anchor="middle" font-family="${MP.SANS}" font-size="0.32" letter-spacing="0.08" fill="${L}">&amp; doces</text>`);
-  // árvore (canto)
-  E.push(`<circle cx="37.6" cy="2.5" r="2.4" fill="${SG}" opacity="0.16"/>`);
-  E.push(`<circle cx="37.6" cy="2.5" r="2.4" fill="none" stroke="${SG}" stroke-width="0.05" stroke-dasharray="0.28 0.18"/>`);
-  E.push(`<circle cx="37.6" cy="2.5" r="0.26" fill="${SG}"/>`);
-  E.push(`<text x="37.6" y="0.9" text-anchor="middle" font-family="${MP.SANS}" font-size="0.4" letter-spacing="0.16" fill="${SG}">ÁRVORE</text>`);
+  E.push(`<circle cx="20.5" cy="9" r="1.3" fill="#fff" stroke="${I}" stroke-width="0.06"/>`);
+  E.push(`<text x="20.5" y="9.16" text-anchor="middle" font-family="${MP.SANS}" font-size="0.42" letter-spacing="0.14" fill="${I}">BOLO</text>`);
+  E.push(`<text x="20.5" y="11.6" text-anchor="middle" font-family="${MP.SANS}" font-size="0.32" letter-spacing="0.08" fill="${L}">&amp; doces</text>`);
+  // árvore (canto esquerdo, como no croqui)
+  E.push(`<circle cx="2.4" cy="2.5" r="2.4" fill="${SG}" opacity="0.16"/>`);
+  E.push(`<circle cx="2.4" cy="2.5" r="2.4" fill="none" stroke="${SG}" stroke-width="0.05" stroke-dasharray="0.28 0.18"/>`);
+  E.push(`<circle cx="2.4" cy="2.5" r="0.26" fill="${SG}"/>`);
+  E.push(`<text x="2.4" y="0.9" text-anchor="middle" font-family="${MP.SANS}" font-size="0.4" letter-spacing="0.16" fill="${SG}">ÁRVORE</text>`);
   // vagas fantasma (guia de onde cada mesa deve ficar)
   VAGAS.forEach(([mx,my],i)=>{ const n=i+1;
     if (n<=20){
