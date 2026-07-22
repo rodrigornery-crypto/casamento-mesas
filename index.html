@@ -916,8 +916,7 @@ function render(){
         <h3 draggable="true" data-move-table="${t.id}" style="background:${corClara}" title="Arraste para trocar a mesa de posição">
           <span class="grip">⠿</span>
           <span class="colorDot" data-color-table="${t.id}" style="background:${corEscura}" title="Trocar a cor da mesa"></span>
-          ${tableLabel(t)} ·
-          <span class="tname" contenteditable="true" data-table-name="${t.id}">${t.nome}</span>
+          <span class="tname">${t.nome}</span>
           <span class="count ${cls}">${seated}/${CAPACITY}</span>
           <button class="del" data-del-table="${t.id}" title="Remover mesa">✕</button>
         </h3>
@@ -972,7 +971,7 @@ function areAdjacent(t1, t2){
 }
 function renderWarnings(){
   const out = [];
-  const la = tid => { const t = state.tables.find(t=>t.id===tid); return t ? tableLabel(t) : '?'; };
+  const la = tid => { const t = state.tables.find(t=>t.id===tid); return t ? t.nome : '?'; };
   for (const [cvA, cvB] of state.rules){
     const tsA = tablesOf(cvA), tsB = tablesOf(cvB);
     if (!tsA.length || !tsB.length) continue;
@@ -1139,7 +1138,7 @@ function copySummary(){
     const gs = ALLG.filter(g => state.assign[g.id] === t.id);
     if (!gs.length) continue;
     const seated = gs.filter(g=>g.t!=='b').length;
-    txt += `${tableLabel(t)} — ${t.nome} (${seated}/${CAPACITY})\n`;
+    txt += `${t.nome} (${seated}/${CAPACITY})\n`;
     const byCv = {};
     gs.forEach(g => (byCv[g.cv] = byCv[g.cv]||[]).push(g));
     for (const cv in byCv)
@@ -1548,18 +1547,22 @@ function vagaDaMesa(t){
 }
 
 // padronização: o NOME da mesa segue a vaga do mapa ("Mesa {vaga}").
-// Sempre que a mesa muda de lugar, o nome (e a ordem na aba Lista) acompanham.
-function sincronizarNomeVaga(t){
-  const v = vagaDaMesa(t);
-  if (v){ t.nome = 'Mesa ' + v; t.slot = v - 1; }
+// Mesa fora do mapa vira "Sem local 1", "Sem local 2"… (depois das outras na Lista).
+// Sempre que uma mesa muda de lugar, nome e ordem acompanham — tudo integrado.
+function sincronizarNomesVagas(){
+  const semVaga = [];
+  state.tables.forEach(t => {
+    const v = vagaDaMesa(t);
+    if (v){ t.nome = 'Mesa ' + v; t.slot = v - 1; } else semVaga.push(t);
+  });
+  semVaga.sort((a,b)=>a.slot-b.slot).forEach((t,k) => { t.nome = 'Sem local ' + (k+1); t.slot = VAGAS.length + k; });
 }
 
 // abre o PDF de um convite (janela de impressão → "Salvar como PDF")
 function abrirPDF(tid, cv){
   const t = state.tables.find(x=>x.id===tid); if (!t) return;
-  let num = vagaDaMesa(t);
-  if (!num) num = parseInt((t.nome.match(/\d+/)||[])[0], 10) || 0;
-  if (!num || num>22){ alert('Não consegui identificar a vaga desta mesa no mapa — arraste o card para cima de uma vaga numerada e tente de novo.'); return; }
+  const num = vagaDaMesa(t);
+  if (!num){ alert('Esta mesa está "Sem local" (fora do mapa) — arraste o card para cima de uma vaga numerada na planta e gere o PDF de novo.'); return; }
   const rot = num>20 ? 'Mesa dos Pais' : 'Mesa '+num;
   const w = window.open('about:blank');
   if (!w){ alert('O navegador bloqueou o pop-up — libere pop-ups deste site para gerar o PDF.'); return; }
@@ -1572,7 +1575,7 @@ function sortedTables(){ return [...state.tables].sort((a,b)=>a.slot-b.slot); }
 // aplica o layout-planta (defPos) a TODAS as mesas, na ordem visual (por slot)
 function applyPlantaLayout(){
   sortedTables().forEach((t,i) => { const p = defPos(i); t.px = p.x; t.py = p.y; });
-  state.tables.forEach(sincronizarNomeVaga);
+  sincronizarNomesVagas();
 }
 // garante que toda mesa tem posição no salão (px,py). Retorna true se mudou algo.
 function ensurePlantaPos(){
@@ -1639,8 +1642,7 @@ function renderPlanta(){
       + '<div class="ptc-head" data-move="'+t.id+'" style="background:'+cc+'">'
         + '<span class="grip">⠿</span>'
         + '<span class="dot" data-color-table="'+t.id+'" title="Trocar a cor da mesa"></span>'
-        + '<span class="ttl">'+tableLabel(t)+' ·</span>'
-        + '<span class="nm" contenteditable="true" data-table-name="'+t.id+'">'+t.nome+'</span>'
+        + '<span class="nm">'+t.nome+'</span>'
         + '<span class="'+vgCls+'" title="'+vgTip+'">📍'+(vg||'?')+'</span>'
         + '<span class="cnt '+cntCls+'">'+(over ? '🔺'+seated : seated+'/'+CAPACITY)+'</span>'
         + '<button class="del" data-del-table="'+t.id+'" title="Remover mesa">✕</button>'
@@ -1686,7 +1688,7 @@ function renderPlanta(){
     const byT = {}; matches.forEach(m => (byT[m.tid] = byT[m.tid] || []).push(m.g.n));
     banner.className = 'pl-banner show';
     banner.innerHTML = Object.entries(byT).map(([tid,names]) => {
-      const t = state.tables.find(x => x.id === tid); return '📍 <b>'+names.join(', ')+'</b> → '+tableLabel(t)+' · '+t.nome;
+      const t = state.tables.find(x => x.id === tid); return '📍 <b>'+names.join(', ')+'</b> → '+t.nome;
     }).join('<br>');
     const card = canvas.querySelector('[data-table="'+matches[0].tid+'"]');
     if (card) card.scrollIntoView({ block:'center', inline:'center', behavior:'smooth' });
@@ -1781,7 +1783,7 @@ function wireTableDrag(h){
     const mv = ev => { const dx = (ev.clientX-sx)/plantaScale, dy = (ev.clientY-sy)/plantaScale;
       t.px = Math.max(0, ox+dx); t.py = Math.max(0, oy+dy); card.style.left = t.px+'px'; card.style.top = t.py+'px'; };
     const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up);
-      card.classList.remove('dragging'); sincronizarNomeVaga(t); save(); renderPlanta(); };
+      card.classList.remove('dragging'); sincronizarNomesVagas(); save(); render(); };
     document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
   });
 }
@@ -1792,7 +1794,7 @@ function addTablePlanta(){
   const t = state.tables.find(x => !before.has(x.id));
   if (t){ const wrap = document.getElementById('planta-wrap');
     t.px = (wrap.scrollLeft + 40)/plantaScale; t.py = (wrap.scrollTop + 40)/plantaScale;
-    save(); renderPlanta(); }
+    sincronizarNomesVagas(); save(); render(); }
 }
 function plantaZoom(d){ plantaScale = Math.max(0.1, Math.min(1.6, (plantaScale||0.6) + d)); renderPlanta(); }
 function plantaFitAll(){ plantaScale = 0; renderPlanta(); }
