@@ -201,8 +201,11 @@
   .ptc-head .grip { opacity:.4; }
   .ptc-head .dot { width:15px; height:15px; border-radius:50%; border:1.5px solid rgba(0,0,0,.3); cursor:pointer; flex-shrink:0; }
   .ptc-head .ttl { white-space:nowrap; }
-  .ptc-head .nm { outline:none; border-bottom:1px dashed transparent; max-width:92px; overflow:hidden;
+  .ptc-head .nm { outline:none; border-bottom:1px dashed transparent; max-width:66px; overflow:hidden;
     text-overflow:ellipsis; white-space:nowrap; cursor:text; }
+  .ptc-head .vg { font-size:10.5px; font-weight:800; color:#2f5cb5; background:#e6eefb;
+    border-radius:8px; padding:1px 5px; flex-shrink:0; }
+  .ptc-head .vg.dup { color:#a02020; background:#fde2e2; }
   .ptc-head .nm:hover { border-bottom-color:#999; }
   .ptc-head .cnt { margin-left:auto; font-size:11px; font-weight:800; padding:1px 7px; border-radius:9px; background:#e7efe9; color:#2d4a33; }
   .ptc-head .cnt.full { background:#dff3e2; color:#1f5c2d; }
@@ -1534,11 +1537,22 @@ function mapaConviteHTML(num, tituloLinha){
   </body></html>`;
 }
 
+// em qual VAGA do mapa a mesa está? (pela posição do card na planta)
+// é ESSE número que vai no PDF do convite — mover o card muda o número.
+function vagaDaMesa(t){
+  if (typeof t.px !== 'number' || typeof t.py !== 'number') return null;
+  const cx = (t.px + CW/2 - POX)/SPX, cy = (t.py + 40 - POY)/SPX;   // centro do cabeçalho, em metros
+  let best = -1, bd = Infinity;
+  VAGAS.forEach(([vx,vy],i)=>{ const d=(vx-cx)*(vx-cx)+(vy-cy)*(vy-cy); if (d<bd){ bd=d; best=i; } });
+  return bd <= 9 ? best+1 : null;   // até 3 m da vaga; mais longe = fora do mapa
+}
+
 // abre o PDF de um convite (janela de impressão → "Salvar como PDF")
 function abrirPDF(tid, cv){
   const t = state.tables.find(x=>x.id===tid); if (!t) return;
-  const num = parseInt((t.nome.match(/\d+/)||[])[0], 10);
-  if (!num || num>22){ alert('Para gerar o PDF, o nome da mesa precisa ser "Mesa N" (1 a 22). Renomeie "'+t.nome+'".'); return; }
+  let num = vagaDaMesa(t);
+  if (!num) num = parseInt((t.nome.match(/\d+/)||[])[0], 10) || 0;
+  if (!num || num>22){ alert('Não consegui identificar a vaga desta mesa no mapa — arraste o card para cima de uma vaga numerada e tente de novo.'); return; }
   const rot = num>20 ? 'Mesa dos Pais' : 'Mesa '+num;
   const w = window.open('about:blank');
   if (!w){ alert('O navegador bloqueou o pop-up — libere pop-ups deste site para gerar o PDF.'); return; }
@@ -1598,6 +1612,10 @@ function renderPlanta(){
   // fundo: o salão aprovado (blocos de mesas, sofás, bolo, pais, árvore, vagas)
   let html = salaoSVG(VW2, VH2);
 
+  // vaga detectada de cada mesa (e vagas com mais de uma mesa em cima)
+  const vagaCount = {};
+  sortedTables().forEach(t => { const v = vagaDaMesa(t); if (v) vagaCount[v] = (vagaCount[v]||0)+1; });
+
   // mesas como cards
   sortedTables().forEach(t => {
     const guests = ALLG.filter(g => state.assign[g.id] === t.id);
@@ -1606,12 +1624,16 @@ function renderPlanta(){
     const [cc, ce] = PALETTE[t.corIdx % PALETTE.length];
     const cntCls = over ? 'over' : seated === CAPACITY ? 'full' : '';
     const cls = 'ptc' + (over ? ' big' : '') + (hitTables.has(t.id) ? ' hit' : '');
+    const vg = vagaDaMesa(t);
+    const vgCls = 'vg' + (vg && vagaCount[vg] > 1 ? ' dup' : '');
+    const vgTip = vg ? (vagaCount[vg] > 1 ? 'ATENÇÃO: mais de uma mesa nesta vaga ('+vg+')!' : 'Vaga '+vg+' do mapa — é este número que sai no PDF dos convites') : 'Fora do mapa — arraste pra cima de uma vaga numerada';
     html += '<div class="'+cls+'" data-table="'+t.id+'" style="left:'+t.px+'px;top:'+t.py+'px;border-color:'+ce+'">'
       + '<div class="ptc-head" data-move="'+t.id+'" style="background:'+cc+'">'
         + '<span class="grip">⠿</span>'
         + '<span class="dot" data-color-table="'+t.id+'" title="Trocar a cor da mesa"></span>'
         + '<span class="ttl">'+tableLabel(t)+' ·</span>'
         + '<span class="nm" contenteditable="true" data-table-name="'+t.id+'">'+t.nome+'</span>'
+        + '<span class="'+vgCls+'" title="'+vgTip+'">📍'+(vg||'?')+'</span>'
         + '<span class="cnt '+cntCls+'">'+(over ? '🔺'+seated : seated+'/'+CAPACITY)+'</span>'
         + '<button class="del" data-del-table="'+t.id+'" title="Remover mesa">✕</button>'
       + '</div>'
