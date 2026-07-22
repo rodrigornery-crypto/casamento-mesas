@@ -1547,6 +1547,13 @@ function vagaDaMesa(t){
   return bd <= 9 ? best+1 : null;   // até 3 m da vaga; mais longe = fora do mapa
 }
 
+// padronização: o NOME da mesa segue a vaga do mapa ("Mesa {vaga}").
+// Sempre que a mesa muda de lugar, o nome (e a ordem na aba Lista) acompanham.
+function sincronizarNomeVaga(t){
+  const v = vagaDaMesa(t);
+  if (v){ t.nome = 'Mesa ' + v; t.slot = v - 1; }
+}
+
 // abre o PDF de um convite (janela de impressão → "Salvar como PDF")
 function abrirPDF(tid, cv){
   const t = state.tables.find(x=>x.id===tid); if (!t) return;
@@ -1565,6 +1572,7 @@ function sortedTables(){ return [...state.tables].sort((a,b)=>a.slot-b.slot); }
 // aplica o layout-planta (defPos) a TODAS as mesas, na ordem visual (por slot)
 function applyPlantaLayout(){
   sortedTables().forEach((t,i) => { const p = defPos(i); t.px = p.x; t.py = p.y; });
+  state.tables.forEach(sincronizarNomeVaga);
 }
 // garante que toda mesa tem posição no salão (px,py). Retorna true se mudou algo.
 function ensurePlantaPos(){
@@ -1773,7 +1781,7 @@ function wireTableDrag(h){
     const mv = ev => { const dx = (ev.clientX-sx)/plantaScale, dy = (ev.clientY-sy)/plantaScale;
       t.px = Math.max(0, ox+dx); t.py = Math.max(0, oy+dy); card.style.left = t.px+'px'; card.style.top = t.py+'px'; };
     const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up);
-      card.classList.remove('dragging'); save(); renderPlanta(); };
+      card.classList.remove('dragging'); sincronizarNomeVaga(t); save(); renderPlanta(); };
     document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
   });
 }
