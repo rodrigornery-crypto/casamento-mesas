@@ -209,7 +209,13 @@
   .ptc-head .cnt.over { background:#fde2e2; color:#a02020; }
   .ptc-head .del { border:none; background:none; cursor:pointer; font-size:12px; opacity:.4; padding:0 2px; }
   .ptc-head .del:hover { opacity:1; color:#a02020; }
-  .ptc-body { display:flex; flex-direction:column; gap:3px; padding:6px; max-height:220px; overflow-y:auto; min-height:32px; }
+  .ptc-body { display:flex; flex-direction:column; gap:3px; padding:6px; max-height:260px; overflow-y:auto; min-height:32px; }
+  .cvg { display:flex; flex-direction:column; gap:3px; border-top:1px dashed #d9e3d6; padding-top:4px; margin-top:2px; }
+  .cvg:first-child { border-top:none; padding-top:0; margin-top:0; }
+  .cvh { display:flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:#3f5e49; }
+  .cvh .cvn { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cvh .pdf { margin-left:auto; border:none; background:none; cursor:pointer; font-size:13px; opacity:.55; padding:0 2px; flex-shrink:0; }
+  .cvh .pdf:hover { opacity:1; }
   .ptc .chip { font-size:12px; padding:3px 7px; }
   .ptc .chip .tag { display:none; }
   .ptc-empty { color:#9ab3a1; font-size:11.5px; text-align:center; padding:9px 4px; }
@@ -1354,21 +1360,28 @@ function removeCustomConvite(cv){
 const CW = 215;          // largura do card de mesa
 let plantaScale = 0;     // 0 = ainda vou calcular o zoom que enquadra
 
-// posições padrão: ESPELHAM a planta do salão que a Luisa/Rodrigo mandaram —
-//   • 4 mesas na fileira de cima, à esquerda
-//   • 3 mesas na fileira de baixo, à esquerda
-//   • par de mesas no topo, à direita
-//   • bloco de 3 colunas à direita (o grosso das mesas)
-// o CENTRO fica pro lounge de poltronas e o caminho tracejado. É o ponto de
-// partida — você arrasta cada mesa pelo título pra deixar exatamente no lugar.
+// ============ PLANTA APROVADA DO SALÃO (croqui 22/jul) ============
+// Salão deitado: faixa 40×18 m. Pista/buffet em cima; 2 blocos de 10 mesas
+// (sofá sinuoso no meio, 3 mesas junto às poltronas + 2 recuadas por lado);
+// centro do bolo com 4 sofás curvos; 2 mesas dos pais viradas pra pista;
+// árvore no canto. Vagas 1-20 = mesas redondas, 21/22 = mesas dos pais.
+const SPX = 150;              // px por metro na planta
+const POX = 80, POY = 150;    // origem do salão dentro do canvas
+const VAGAS = [               // centro de cada vaga, em metros [x,y]
+  [3.1,6.6],[3.0,11.4],[4.8,4.9],[4.7,13.1],[6.5,6.6],
+  [6.4,11.4],[8.2,4.9],[8.1,13.1],[9.9,6.6],[9.8,11.4],
+  [29.1,6.6],[29.0,11.4],[30.8,4.9],[30.7,13.1],[32.5,6.6],
+  [32.4,11.4],[34.2,4.9],[34.1,13.1],[35.9,6.6],[35.8,11.4],
+  [16.9,1.75],[22.5,1.75],
+];
 function defPos(i){
-  if (i < 4)  return { x:130  + i*250,      y:70   };   // fileira de cima (esquerda)
-  if (i < 7)  return { x:260  + (i-4)*250,   y:1120 };   // fileira de baixo (esquerda)
-  if (i < 9)  return { x:1560 + (i-7)*250,   y:110  };   // par do topo (direita)
-  const j = i-9, c = j % 3, r = (j / 3 | 0);
-  return { x:1435 + c*250, y:420 + r*250 };              // bloco à direita (3 colunas)
+  if (i < VAGAS.length){
+    const [mx,my] = VAGAS[i];
+    return { x: Math.round(POX + mx*SPX - CW/2), y: Math.round(POY + my*SPX - 40) };
+  }
+  return { x: 200 + (i-VAGAS.length)*250, y: POY + 18*SPX + 140 };  // extras: abaixo do salão
 }
-const PLANTA_LAYOUT_V = 2;   // bump pra re-arrumar as mesas já salvas na nova planta (1x)
+const PLANTA_LAYOUT_V = 3;   // bump pra re-arrumar as mesas já salvas na nova planta (1x)
 
 // marcos de referência (decorativos, não são mesas):
 //   • estrutura à esquerda (tenda/canteiros da planta)
@@ -1408,6 +1421,131 @@ function loungeSVG(w,h){
   return s;
 }
 
+// ============ MAPA AQUARELA (fundo da planta + PDF por convite) ============
+const MP = { INK:'#48513c', FLOOR:'#f1f3e2', LIGHT:'#a3a88e', SAGE:'#6f8b5e', AZUL:'#2f5cb5',
+             SERIF:"Didot,'Playfair Display',Georgia,serif", SANS:"'Avenir Next','Helvetica Neue',Arial,sans-serif" };
+// posições das mesas no mapa VERTICAL do PDF (metros) — o desenho aprovado
+const MAPA_POS = {1:[6.6,3.1],2:[11.4,3.0],3:[4.9,4.8],4:[13.1,4.7],5:[6.6,6.5],6:[11.4,6.4],7:[4.9,8.2],8:[13.1,8.1],9:[6.6,9.9],10:[11.4,9.8],
+  11:[6.6,29.1],12:[11.4,29.0],13:[4.9,30.8],14:[13.1,30.7],15:[6.6,32.5],16:[11.4,32.4],17:[4.9,34.2],18:[13.1,34.1],19:[6.6,35.9],20:[11.4,35.8],
+  21:[1.75,16.9],22:[1.75,22.5]};   // 21/22 = mesas dos pais
+
+// fundo da aba Planta: o salão deitado (40×18 m), com vagas numeradas fantasma
+function salaoSVG(w,h){
+  const I=MP.INK, L=MP.LIGHT, SG=MP.SAGE, E=[];
+  E.push(`<rect x="0" y="0" width="40" height="18" fill="#e9eeda" stroke="${I}" stroke-width="0.07"/>`);
+  E.push(`<line x1="1" y1="-0.55" x2="39" y2="-0.55" stroke="${L}" stroke-width="0.045" stroke-dasharray="0.5 0.3"/>`);
+  E.push(`<text x="20" y="-0.85" text-anchor="middle" font-family="${MP.SANS}" font-size="0.5" letter-spacing="0.14" fill="${L}">PISTA · BUFFET · RECEPÇÃO</text>`);
+  [1.5, 27.5].forEach(bx => {
+    E.push(`<rect x="${bx}" y="4" width="10" height="10" fill="${MP.FLOOR}" stroke="${I}" stroke-width="0.045"/>`);
+    const x0=bx+0.4, d=`M ${x0} 9 C ${x0+1.2} 7.6, ${x0+2.4} 10.4, ${x0+3.6} 9 C ${x0+4.8} 7.6, ${x0+6} 10.4, ${x0+7.2} 9 C ${x0+7.9} 8.2, ${x0+8.6} 9.7, ${x0+9.3} 9`;
+    E.push(`<path d="${d}" fill="none" stroke="${I}" stroke-width="0.72" stroke-linecap="round"/>`);
+    E.push(`<path d="${d}" fill="none" stroke="#fff" stroke-width="0.46" stroke-linecap="round"/>`);
+    [[1.0,10.15],[2.4,7.85],[3.7,10.15],[5.0,7.85],[6.3,10.15],[7.7,7.85],[8.6,10.15]].forEach(([dx,py])=>{
+      E.push(`<circle cx="${bx+dx}" cy="${py}" r="0.38" fill="#fff" stroke="${I}" stroke-width="0.04"/>`);});
+  });
+  // centro do bolo
+  E.push(`<rect x="14.5" y="4" width="10" height="10" fill="${MP.FLOOR}" stroke="${I}" stroke-width="0.045"/>`);
+  for (const a of [45,135,225,315]){ const r=3.5, a1=(a-27)*Math.PI/180, a2=(a+27)*Math.PI/180;
+    const arc=`M ${(19.5+r*Math.cos(a1)).toFixed(2)} ${(9+r*Math.sin(a1)).toFixed(2)} A ${r} ${r} 0 0 1 ${(19.5+r*Math.cos(a2)).toFixed(2)} ${(9+r*Math.sin(a2)).toFixed(2)}`;
+    E.push(`<path d="${arc}" fill="none" stroke="${I}" stroke-width="0.72" stroke-linecap="round"/>`);
+    E.push(`<path d="${arc}" fill="none" stroke="#fff" stroke-width="0.46" stroke-linecap="round"/>`); }
+  E.push(`<circle cx="19.5" cy="9" r="1.3" fill="#fff" stroke="${I}" stroke-width="0.06"/>`);
+  E.push(`<text x="19.5" y="9.16" text-anchor="middle" font-family="${MP.SANS}" font-size="0.42" letter-spacing="0.14" fill="${I}">BOLO</text>`);
+  E.push(`<text x="19.5" y="11.6" text-anchor="middle" font-family="${MP.SANS}" font-size="0.32" letter-spacing="0.08" fill="${L}">&amp; doces</text>`);
+  // árvore (canto)
+  E.push(`<circle cx="37.6" cy="2.5" r="2.4" fill="${SG}" opacity="0.16"/>`);
+  E.push(`<circle cx="37.6" cy="2.5" r="2.4" fill="none" stroke="${SG}" stroke-width="0.05" stroke-dasharray="0.28 0.18"/>`);
+  E.push(`<circle cx="37.6" cy="2.5" r="0.26" fill="${SG}"/>`);
+  E.push(`<text x="37.6" y="0.9" text-anchor="middle" font-family="${MP.SANS}" font-size="0.4" letter-spacing="0.16" fill="${SG}">ÁRVORE</text>`);
+  // vagas fantasma (guia de onde cada mesa deve ficar)
+  VAGAS.forEach(([mx,my],i)=>{ const n=i+1;
+    if (n<=20){
+      E.push(`<circle cx="${mx}" cy="${my}" r="0.85" fill="#fff" opacity="0.5" stroke="${I}" stroke-width="0.035" stroke-dasharray="0.12 0.1"/>`);
+      E.push(`<text x="${mx}" y="${my+0.25}" text-anchor="middle" font-family="${MP.SERIF}" font-size="0.7" fill="${I}" opacity="0.4">${n}</text>`);
+    } else {
+      E.push(`<rect x="${mx-1.3}" y="${my-0.55}" width="2.6" height="1.1" rx="0.1" fill="#fff" opacity="0.5" stroke="${I}" stroke-width="0.035" stroke-dasharray="0.12 0.1"/>`);
+      E.push(`<text x="${mx}" y="${my+0.22}" text-anchor="middle" font-family="${MP.SERIF}" font-size="0.6" fill="${I}" opacity="0.4">${n}</text>`);
+    }});
+  return `<svg class="pl-path" width="${w}" height="${h}"><g transform="translate(${POX},${POY}) scale(${SPX})">${E.join('')}</g></svg>`;
+}
+
+// PDF do convite: o mapa vertical aquarela aprovado, com a mesa destacada
+function mapaConviteHTML(num, tituloLinha){
+  const W=516, H=1090, S=22, OY=120;
+  const I=MP.INK, L=MP.LIGHT, SG=MP.SAGE, AZ=MP.AZUL, P=[];
+  const mesaC=(x,y,n)=>{ const hl=n===num;
+    P.push(`<circle cx="${x}" cy="${y}" r="0.85" fill="${hl?AZ:'#fff'}" stroke="${hl?AZ:I}" stroke-width="0.055"/>`);
+    P.push(`<circle cx="${x}" cy="${y}" r="0.58" fill="none" stroke="${hl?AZ:I}" stroke-width="0.02" stroke-dasharray="0.09 0.09" opacity="0.55"/>`);
+    P.push(`<text x="${x}" y="${y+0.23}" text-anchor="middle" font-family="${MP.SERIF}" font-size="0.68" fill="${hl?'#fff':I}">${n}</text>`);
+    if (hl) P.push(`<circle cx="${x}" cy="${y}" r="1.18" fill="none" stroke="${AZ}" stroke-width="0.045" stroke-dasharray="0.16 0.12"/>`); };
+  const sofaS=(y0)=>{ const d=`M 9 ${y0} C 7.6 ${y0+1.2}, 10.4 ${y0+2.4}, 9 ${y0+3.6} C 7.6 ${y0+4.8}, 10.4 ${y0+6.0}, 9 ${y0+7.2} C 8.2 ${y0+7.9}, 9.7 ${y0+8.6}, 9 ${y0+9.3}`;
+    P.push(`<path d="${d}" fill="none" stroke="${I}" stroke-width="0.72" stroke-linecap="round"/>`);
+    P.push(`<path d="${d}" fill="none" stroke="#fff" stroke-width="0.46" stroke-linecap="round"/>`); };
+  const bloco=(y0,n0)=>{ P.push(`<rect x="4" y="${y0}" width="10" height="10" fill="${MP.FLOOR}" stroke="${I}" stroke-width="0.045"/>`);
+    sofaS(y0+0.4);
+    [[10.15,1.0],[7.85,2.4],[10.15,3.7],[7.85,5.0],[10.15,6.3],[7.85,7.7],[10.15,8.6]].forEach(([x,dy])=>{
+      P.push(`<circle cx="${x}" cy="${y0+dy}" r="0.38" fill="#fff" stroke="${I}" stroke-width="0.04"/>`);
+      P.push(`<circle cx="${x}" cy="${y0+dy}" r="0.22" fill="none" stroke="${I}" stroke-width="0.018" opacity="0.5"/>`);});
+    for (let k=0;k<10;k++){ const [x,y]=MAPA_POS[n0+k]; mesaC(x,y,n0+k); } };
+  const pais=(x,y,n)=>{ const hl=n===num;
+    P.push(`<rect x="${x}" y="${y}" width="1.1" height="2.6" rx="0.1" fill="${hl?AZ:'#fff'}" stroke="${hl?AZ:I}" stroke-width="0.05"/>`);
+    P.push(`<text x="${x+0.55}" y="${y+1.4}" text-anchor="middle" font-family="${MP.SERIF}" font-size="0.5" fill="${hl?'#fff':I}">12</text>`);
+    P.push(`<text x="${x+0.55}" y="${y+3.15}" text-anchor="middle" font-family="${MP.SANS}" font-size="0.34" letter-spacing="0.04" fill="${L}">PAIS</text>`);
+    if (hl) P.push(`<rect x="${x-0.28}" y="${y-0.28}" width="1.66" height="3.16" rx="0.2" fill="none" stroke="${AZ}" stroke-width="0.045" stroke-dasharray="0.16 0.12"/>`); };
+  P.push(`<rect x="0" y="0" width="18" height="40" fill="#e9eeda" stroke="${I}" stroke-width="0.07"/>`);
+  P.push(`<line x1="-1.3" y1="1" x2="-1.3" y2="39" stroke="${L}" stroke-width="0.045" stroke-dasharray="0.5 0.3"/>`);
+  P.push(`<text x="-1.75" y="20" font-family="${MP.SANS}" font-size="0.44" letter-spacing="0.12" fill="${L}" transform="rotate(-90 -1.75 20)" text-anchor="middle">PISTA · BUFFET · RECEPÇÃO</text>`);
+  bloco(1.5, 1);
+  P.push(`<rect x="4" y="14.5" width="10" height="10" fill="${MP.FLOOR}" stroke="${I}" stroke-width="0.045"/>`);
+  for (const a of [45,135,225,315]){ const r=3.5, a1=(a-27)*Math.PI/180, a2=(a+27)*Math.PI/180;
+    const arc=`M ${(9+r*Math.cos(a1)).toFixed(2)} ${(19.5+r*Math.sin(a1)).toFixed(2)} A ${r} ${r} 0 0 1 ${(9+r*Math.cos(a2)).toFixed(2)} ${(19.5+r*Math.sin(a2)).toFixed(2)}`;
+    P.push(`<path d="${arc}" fill="none" stroke="${I}" stroke-width="0.72" stroke-linecap="round"/>`);
+    P.push(`<path d="${arc}" fill="none" stroke="#fff" stroke-width="0.46" stroke-linecap="round"/>`); }
+  P.push(`<circle cx="9" cy="19.5" r="1.3" fill="#fff" stroke="${I}" stroke-width="0.06"/>`);
+  P.push(`<circle cx="9" cy="19.5" r="0.95" fill="none" stroke="${I}" stroke-width="0.02" stroke-dasharray="0.1 0.08" opacity="0.6"/>`);
+  P.push(`<text x="9" y="19.66" text-anchor="middle" font-family="${MP.SANS}" font-size="0.42" letter-spacing="0.14" fill="${I}">BOLO</text>`);
+  P.push(`<text x="9" y="22.15" text-anchor="middle" font-family="${MP.SANS}" font-size="0.32" letter-spacing="0.08" fill="${L}">&amp; doces</text>`);
+  pais(1.2, 15.6, 21); pais(1.2, 21.2, 22);
+  bloco(27.5, 11);
+  P.push(`<circle cx="2.5" cy="37.6" r="2.4" fill="${SG}" opacity="0.16"/>`);
+  P.push(`<circle cx="2.5" cy="37.6" r="2.4" fill="none" stroke="${SG}" stroke-width="0.05" stroke-dasharray="0.28 0.18"/>`);
+  P.push(`<circle cx="2.5" cy="37.6" r="1.6" fill="none" stroke="${SG}" stroke-width="0.03" stroke-dasharray="0.14 0.14" opacity="0.7"/>`);
+  P.push(`<circle cx="2.5" cy="37.6" r="0.26" fill="${SG}"/>`);
+  P.push(`<text x="2.5" y="36.2" text-anchor="middle" font-family="${MP.SANS}" font-size="0.4" letter-spacing="0.16" fill="${SG}">ÁRVORE</text>`);
+  // tag "SUA MESA"
+  const [hx,hy]=MAPA_POS[num], dir = hx<3 ? 1 : hx<9 ? -1 : 1, tx = hx + dir*3.4;
+  P.push(`<line x1="${hx+dir*1.3}" y1="${hy}" x2="${tx-dir*0.9}" y2="${hy}" stroke="${AZ}" stroke-width="0.035"/>`);
+  P.push(`<text x="${tx+dir*0.9}" y="${hy-0.15}" text-anchor="${dir>0?'start':'end'}" font-family="${MP.SANS}" font-size="0.46" letter-spacing="0.14" fill="${AZ}">SUA MESA</text>`);
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(tituloLinha)}</title><style>
+    @page { size: ${W}px ${H}px; margin: 0; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { width:${W}px; height:${H}px; background:linear-gradient(180deg,#e8f1f6 0%,#fafaf3 15%); font-family:${MP.SANS}; position:relative; }
+    .head { text-align:center; padding-top:26px; }
+    .head .names { font-family:${MP.SERIF}; font-size:27px; color:${I}; font-style:italic; }
+    .head .sub { font-size:10.5px; letter-spacing:4.5px; color:${L}; margin-top:6px; }
+    .guest { text-align:center; font-family:${MP.SERIF}; font-size:15px; color:${AZ}; margin-top:7px; }
+  </style></head><body>
+  <div class="head"><div class="names">Rodrigo &amp; Luisa</div><div class="sub">MAPA DAS MESAS</div>
+  <div class="guest">${esc(tituloLinha)}</div></div>
+  <svg width="${W}" height="${H-OY}" viewBox="0 0 ${W} ${H-OY}" style="position:absolute; top:${OY}px; left:0">
+    <g transform="translate(60,${2.6*S}) scale(${S})">${P.join('')}</g></svg>
+  <scr`+`ipt>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));</scr`+`ipt>
+  </body></html>`;
+}
+
+// abre o PDF de um convite (janela de impressão → "Salvar como PDF")
+function abrirPDF(tid, cv){
+  const t = state.tables.find(x=>x.id===tid); if (!t) return;
+  const num = parseInt((t.nome.match(/\d+/)||[])[0], 10);
+  if (!num || num>22){ alert('Para gerar o PDF, o nome da mesa precisa ser "Mesa N" (1 a 22). Renomeie "'+t.nome+'".'); return; }
+  const rot = num>20 ? 'Mesa dos Pais' : 'Mesa '+num;
+  const w = window.open('about:blank');
+  if (!w){ alert('O navegador bloqueou o pop-up — libere pop-ups deste site para gerar o PDF.'); return; }
+  w.document.write(mapaConviteHTML(num, cv+' — '+rot));
+  w.document.close();
+}
+
 function sortedTables(){ return [...state.tables].sort((a,b)=>a.slot-b.slot); }
 
 // aplica o layout-planta (defPos) a TODAS as mesas, na ordem visual (por slot)
@@ -1435,9 +1573,8 @@ function organizarPlanta(){
 }
 
 function plantaCanvasSize(){
-  let mx = 2200, my = 1500;
+  let mx = POX*2 + 40*SPX, my = POY + 18*SPX + 120;
   state.tables.forEach(t => { mx = Math.max(mx,(t.px||0)+CW); my = Math.max(my,(t.py||0)+300); });
-  LANDMARKS.forEach(l => { mx = Math.max(mx,l.x+l.w); my = Math.max(my,l.y+l.h); });
   return { w:mx+60, h:my+60 };
 }
 
@@ -1451,25 +1588,15 @@ function renderPlanta(){
 
   const q = (document.getElementById('planta-search').value || '').trim().toLowerCase();
   const { w:VW2, h:VH2 } = plantaCanvasSize();
-  if (!plantaScale) plantaScale = Math.max(0.4, Math.min(1, (wrap.clientWidth - 8) / VW2));
+  if (!plantaScale) plantaScale = Math.max(0.1, Math.min(1, (wrap.clientWidth - 8) / VW2));
 
   // quem casa com a busca (só quem está numa mesa)
   const hitTables = new Set(); const matches = [];
   if (q) ALLG.forEach(g => { const tid = state.assign[g.id]; if (!tid || tid==='OUT') return;
     if (g.n.toLowerCase().includes(q) || g.cv.toLowerCase().includes(q)){ hitTables.add(tid); matches.push({g, tid}); } });
 
-  // caminho tracejado (curva que corta o salão, como na planta)
-  let html = '<svg class="pl-path" width="'+VW2+'" height="'+VH2+'">'
-    + '<path d="M '+(VW2*0.46)+' 16 C '+(VW2*0.54)+' '+(VH2*0.30)+', '+(VW2*0.34)+' '+(VH2*0.62)+', '+(VW2*0.40)+' '+VH2+'" '
-    + 'fill="none" stroke="#b9c9bd" stroke-width="2.5" stroke-dasharray="11 9"/></svg>';
-  // marcos
-  html += '<div class="lm wall" style="left:0;top:0;width:'+VW2+'px;height:16px;border-radius:0;border-style:solid;background:rgba(198,216,201,.7);font-size:11px;color:#5b7a64;z-index:1">entrada · buffet</div>';
-  LANDMARKS.forEach(l => {
-    let inner = '<span class="lm-cap">' + l.label + '</span>';
-    if (l.cls === 'lounge')    inner = loungeSVG(l.w, l.h) + inner;
-    if (l.cls === 'estrutura') inner = estruturaSVG(l.w, l.h) + inner;
-    html += '<div class="lm '+l.cls+'" style="left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px;z-index:1">'+inner+'</div>';
-  });
+  // fundo: o salão aprovado (blocos de mesas, sofás, bolo, pais, árvore, vagas)
+  let html = salaoSVG(VW2, VH2);
 
   // mesas como cards
   sortedTables().forEach(t => {
@@ -1488,7 +1615,16 @@ function renderPlanta(){
         + '<span class="cnt '+cntCls+'">'+(over ? '🔺'+seated : seated+'/'+CAPACITY)+'</span>'
         + '<button class="del" data-del-table="'+t.id+'" title="Remover mesa">✕</button>'
       + '</div>'
-      + '<div class="ptc-body">' + (guests.length ? guests.map(chipHTML).join('') : '<div class="ptc-empty">arraste convidados pra cá</div>') + '</div>'
+      + '<div class="ptc-body">' + (guests.length ? (() => {
+          const byCv = {};
+          guests.forEach(g => (byCv[g.cv] = byCv[g.cv] || []).push(g));
+          return Object.entries(byCv).map(([cv, gs]) =>
+            '<div class="cvg">'
+            + '<div class="cvh"><span class="cvn" title="'+cv+'">'+cv+'</span>'
+            + '<button class="pdf" data-pdf-mesa="'+t.id+'" data-pdf-cv="'+encodeURIComponent(cv)+'" title="Gerar o PDF deste convite (mapa com a mesa destacada)">📄</button></div>'
+            + gs.map(chipHTML).join('')
+            + '</div>').join('');
+        })() : '<div class="ptc-empty">arraste convidados pra cá</div>') + '</div>'
     + '</div>';
   });
   canvas.innerHTML = html;
@@ -1584,6 +1720,11 @@ function wirePlanta(){
     const mate = ALLG.find(x => x.cv===g.cv && x.id!==g.id && state.assign[x.id] && state.assign[x.id]!=='OUT');
     state.assign[g.id] = mate ? state.assign[mate.id] : null; save(); render();
   }));
+  // 📄 gerar PDF do convite (mapa com a mesa destacada)
+  canvas.querySelectorAll('[data-pdf-cv]').forEach(btn => {
+    btn.addEventListener('pointerdown', e => e.stopPropagation());
+    btn.addEventListener('click', e => { e.stopPropagation(); abrirPDF(btn.dataset.pdfMesa, decodeURIComponent(btn.dataset.pdfCv)); });
+  });
   // remover / recolorir / renomear mesa
   canvas.querySelectorAll('[data-del-table]').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); removeTable(btn.dataset.delTable); }));
   canvas.querySelectorAll('[data-color-table]').forEach(dot => {
@@ -1623,7 +1764,7 @@ function addTablePlanta(){
     t.px = (wrap.scrollLeft + 40)/plantaScale; t.py = (wrap.scrollTop + 40)/plantaScale;
     save(); renderPlanta(); }
 }
-function plantaZoom(d){ plantaScale = Math.max(0.3, Math.min(1.6, (plantaScale||0.6) + d)); renderPlanta(); }
+function plantaZoom(d){ plantaScale = Math.max(0.1, Math.min(1.6, (plantaScale||0.6) + d)); renderPlanta(); }
 function plantaFitAll(){ plantaScale = 0; renderPlanta(); }
 
 function showView(name){
@@ -1683,6 +1824,9 @@ async function initSupabase(){
 }
 
 render();
+// abrir direto numa aba via URL: ?view=planta
+const _viewParam = new URLSearchParams(location.search).get('view');
+if (_viewParam) showView(_viewParam);
 initSupabase();
 </script>
 </body>
